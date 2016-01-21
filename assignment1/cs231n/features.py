@@ -41,14 +41,14 @@ def extract_features(imgs, feature_fns, verbose=False):
   imgs_features[0] = np.hstack(first_image_features).T
 
   # Extract features for the rest of the images.
-  for i in xrange(1, num_images):
+  for i in range(1, num_images):
     idx = 0
     for feature_fn, feature_dim in zip(feature_fns, feature_dims):
       next_idx = idx + feature_dim
       imgs_features[i, idx:next_idx] = feature_fn(imgs[i].squeeze())
       idx = next_idx
     if verbose and i % 1000 == 0:
-      print 'Done extracting features for %d / %d images' % (i, num_images)
+      print(('Done extracting features for %d / %d images' % (i, num_images)))
 
   return imgs_features
 
