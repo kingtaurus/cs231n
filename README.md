@@ -1,4 +1,3 @@
-# cs231n
 Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 ================================================================================
 
@@ -37,10 +36,10 @@ pip install -r requirements.txt  # Install dependencies
 deactivate                       # Exit the virtual environment
 ```
 
-Alternatively you can use `virtualenvwrapper` to manage your virtual environments. *Note*: there are few other points:
-(1) python packages can be installed through package managers. Sometimes one should to use the switch `--system-site-packages` during virtualenv creation.
-(2) do not use `sudo` when calling `pip`.
-(3) `conda env` can be used to install/upgrade packages in a similar to virtual environments ([documentation](http://conda.pydata.org/docs/using/envs.html)). **USE IT**
+Alternatively you can use `virtualenvwrapper` to manage your virtual environments. **Note** there are few other points:
+1. python packages can be installed through package managers. Sometimes one should to use the switch `--system-site-packages` during virtualenv creation.
+2. do not use `sudo` when calling `pip`.
+3. `conda env` can be used to install/upgrade packages in a similar to virtual environments ([documentation](http://conda.pydata.org/docs/using/envs.html)). **USE IT**
 
 ####Download data:
 Once you have the starter code, you will need to download the CIFAR-10 dataset. Run the following from the assignment1 directory:
@@ -52,4 +51,5 @@ cd cs231n/datasets
 ####Start IPython:
 After you have the **CIFAR-10** data, you should start the IPython notebook server from the `assignment1` directory. If you are unfamiliar with IPython, you should read our [IPython tutorial](http://cs231n.github.io/ipython-tutorial).
 
-**NOTE:** If you are working in a virtual environment on OSX, you may encounter errors with matplotlib due to the [issues described here](http://matplotlib.org/faq/virtualenv_faq.html). You can work around this issue by starting the IPython server using the `start_ipython_osx.sh` script from the `assignment1` directory; the script assumes that your virtual environment is named `.env`.
+**NOTE:** 
+If you are working in a virtual environment on OSX, you may encounter errors with matplotlib due to the [issues described here](http://matplotlib.org/faq/virtualenv_faq.html). You can work around this issue by starting the IPython server using the `start_ipython_osx.sh` script from the `assignment1` directory; the script assumes that your virtual environment is named `.env`.
