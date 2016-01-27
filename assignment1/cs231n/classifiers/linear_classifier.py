@@ -6,6 +6,7 @@ class LinearClassifier(object):
 
   def __init__(self):
     self.W = None
+    self.v = 0.
 
   def train(self, X, y, learning_rate=1e-3, reg=1e-5, num_iters=100,
             batch_size=200, verbose=False):
@@ -30,7 +31,9 @@ class LinearClassifier(object):
     num_classes = np.max(y) + 1 # assume y takes values 0...K-1 where K is number of classes
     if self.W is None:
       # lazily initialize W
-      self.W = 0.001 * np.random.randn(dim, num_classes)
+      self.W        = 0.001 * np.random.randn(dim, num_classes)
+      self.W_min    = self.W
+      self.min_loss = np.inf
 
     # Run stochastic gradient descent to optimize W
     loss_history = []
@@ -49,21 +52,29 @@ class LinearClassifier(object):
       # Hint: Use np.random.choice to generate indices. Sampling with         #
       # replacement is faster than sampling without replacement.              #
       #########################################################################
-      pass
+      idx = np.random.choice(num_train, batch_size, replace=True)
+      X_batch = X[idx,:]
+      y_batch = y[idx]
       #########################################################################
       #                       END OF YOUR CODE                                #
       #########################################################################
 
       # evaluate loss and gradient
       loss, grad = self.loss(X_batch, y_batch, reg)
+      if loss < self.min_loss:
+        self.W_min, self.min_loss = self.W, loss
       loss_history.append(loss)
+
+      if it % max(int(num_train/batch_size), 1) == 0:
+        learning_rate *= 0.97
 
       # perform parameter update
       #########################################################################
       # TODO:                                                                 #
       # Update the weights using the gradient and the learning rate.          #
       #########################################################################
-      pass
+      self.v = 0.95 * self.v - learning_rate * grad
+      self.W += self.v
       #########################################################################
       #                       END OF YOUR CODE                                #
       #########################################################################
@@ -86,12 +97,12 @@ class LinearClassifier(object):
       array of length N, and each element is an integer giving the predicted
       class.
     """
-    y_pred = np.zeros(X.shape[1])
+    y_pred = np.zeros(X.shape[0])
     ###########################################################################
     # TODO:                                                                   #
     # Implement this method. Store the predicted labels in y_pred.            #
     ###########################################################################
-    pass
+    y_pred = np.argmax(np.dot(X,self.W), axis=1)
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
@@ -121,10 +132,29 @@ class LinearSVM(LinearClassifier):
   def loss(self, X_batch, y_batch, reg):
     return svm_loss_vectorized(self.W, X_batch, y_batch, reg)
 
+  def score(self, X, y):
+    return svm_scores(self.W, X, y)
+
 
 class Softmax(LinearClassifier):
   """ A subclass that uses the Softmax + Cross-entropy loss function """
 
   def loss(self, X_batch, y_batch, reg):
     return softmax_loss_vectorized(self.W, X_batch, y_batch, reg)
+
+  def score(self, X, y):
+    return softmax_score(self.W, X, y)
+
+
+def svm_scores(W, X, y):
+  return np.dot(X,W)
+
+def softmax_score(W,X,y):
+  num_train, dim = X.shape
+  f = np.dot(X,W)
+  f -= np.max(f,axis=0)
+
+  f_correct = f[y, np.arange(num_train)]
+  print(f_correct)
+  return np.log( np.exp(f_correct) / np.sum(np.exp(f), axis=0))
 
