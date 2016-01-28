@@ -1,7 +1,8 @@
 Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 ================================================================================
 
-##Assignment 1
+##Assignment 1 (Also applicable for assignment 2 and 3)
+
 
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
 In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier.
