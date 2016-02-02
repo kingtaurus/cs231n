@@ -142,6 +142,7 @@ class Solver(object):
     self.loss_history = []
     self.train_acc_history = []
     self.val_acc_history = []
+    self.epoch_losses = {}
 
     # Make a deep copy of the optim_config for each parameter
     self.optim_configs = {}
@@ -165,6 +166,11 @@ class Solver(object):
     loss, grads = self.model.loss(X_batch, y_batch)
     self.loss_history.append(loss)
 
+    #epoch_losses are the found losses per epoch
+    current_epoch = self.epoch_losses.get(self.epoch, [])
+    current_epoch.append(loss)
+    self.epoch_losses[self.epoch] = current_epoch
+
     # Perform a parameter update
     for p, w in self.model.params.items():
       dw = grads[p]
@@ -173,6 +179,28 @@ class Solver(object):
       self.model.params[p] = next_w
       self.optim_configs[p] = next_config
 
+  #USING the validation set to get an alternative gradient direction
+  #weighting by the size of the sets *seems* to be stable
+  def _alt_step(self):
+     # Make a minibatch of training data
+    num_train = self.X_train.shape[0]
+    batch_mask = np.random.choice(num_train, self.batch_size)
+    X_batch = self.X_train[batch_mask]
+    y_batch = self.y_train[batch_mask]
+
+    # Compute loss and gradient
+    loss, grads = self.model.loss(X_batch, y_batch)
+    loss_val, grads_val = self.model.loss(self.X_val, self.y_val)
+
+    #Make loss a linear mixture (of training and validation)
+    self.loss_history.append(loss * num_train / (num_train + self.X_val.shape[0]) + loss_val * ( self.X_val.shape[0] ) / (num_train + self.X_val.shape[0]) )
+
+    for p,w in self.model.params.items():
+      dw = (grads[p] * num_train/ (num_train + self.X_val.shape[0]) + grads_val[p] * ( self.X_val.shape[0] ) / (num_train + self.X_val.shape[0]) )
+      config = self.optim_configs[p]
+      next_w, next_config = self.update_rule(w, dw, config)
+      self.model.params[p] = next_w
+      self.optim_configs[p] = next_config
 
   def check_accuracy(self, X, y, num_samples=None, batch_size=100):
     """
@@ -200,7 +228,7 @@ class Solver(object):
       y = y[mask]
 
     # Compute predictions in batches
-    num_batches = N / batch_size
+    num_batches = int(N / batch_size)
     if N % batch_size != 0:
       num_batches += 1
     y_pred = []

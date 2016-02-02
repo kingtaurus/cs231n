@@ -14,9 +14,9 @@ def affine_relu_forward(x, w, b):
   - out: Output from the ReLU
   - cache: Object to give to the backward pass
   """
-  a, fc_cache = affine_forward(x, w, b)
+  a, fc_cache     = affine_forward(x, w, b)
   out, relu_cache = relu_forward(a)
-  cache = (fc_cache, relu_cache)
+  cache           = (fc_cache, relu_cache)
   return out, cache
 
 
@@ -25,9 +25,59 @@ def affine_relu_backward(dout, cache):
   Backward pass for the affine-relu convenience layer
   """
   fc_cache, relu_cache = cache
-  da = relu_backward(dout, relu_cache)
+  da         = relu_backward(dout, relu_cache)
   dx, dw, db = affine_backward(da, fc_cache)
   return dx, dw, db
+
+def affine_relu_forward_withdrop_out(x, w, b, dropout_param):
+  """
+  Convenience layer that perorms an affine transform followed by a ReLU.
+  Then drops out some of the associated weights.
+
+  Inputs:
+  - x: Input to the affine layer
+  - w, b: Weights for the affine layer
+  - dropout_param: Dictionary for dropout_forward
+
+  Returns a tuple of:
+  - out: Output from the ReLU + dropped parameters
+  - cache: Object to give to the backward pass
+  """
+  a, fc_cache = affine_forward(x, w, b)
+  out, relu_cache = relu_forward(a)
+  out, drop_cache = dropout_forward(out, dropout_param)
+  cache           = (fc_cache, relu_cache, drop_cache)
+  return out, cache
+
+def affine_relu_backward_withdrop_out(dout, cache):
+  """
+  Backward pass for the affine-relu-dropout convenience layer
+  """
+  fc_cache, relu_cache, drop_cache = cache
+  ddrop      = dropout_backward(dout, drop_cache)
+  da         = relu_backward(ddrop, relu_cache)
+  dx, dw, db = affine_backward(da, fc_cache)
+  return dx, dw, db
+
+def affine_batchnorm_relu_forward(x, w, b, gamma, beta, bn_param):
+  a, fc_cache     = affine_forward(x,w,b)
+  bn, bn_cache    = batchnorm_forward(a, gamma, beta, bn_param)
+  out, relu_cache = relu_forward(bn)
+  cache = (fc_cache, bn_cache, relu_cache)
+  return out, cache
+
+def affine_batchnorm_relu_backward(dout, cache):
+  fc_cache, bn_cache, relu_cache = cache
+  da                = relu_backward(dout, relu_cache)
+  bn, dgamma, dbeta = batchnorm_backward(da, bn_cache)
+  dx, dw, db        = affine_backwards(dn, fc_cache)
+  return dx, dw, db, dn, dgamma, dbeta, da
+
+def affine_batchnorm_relu_dropout_forward():
+  return None, None
+
+def affine_batchnorm_relu_dropout_backward(dout, cache):
+  return None, None, None, None, None
 
 
 pass

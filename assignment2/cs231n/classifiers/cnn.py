@@ -5,6 +5,16 @@ from cs231n.fast_layers import *
 from cs231n.layer_utils import *
 
 
+#might be easier to build some helper parameters
+#i.e. filter_bank(count,size,size)
+# build_conv_net_layer(input_shape, filter_bank)
+# note: options can be activation, drop, pool, batchnorm, resnet(?)
+# build_affine_connection(filter_bank.shape, hidden_layer)
+# build_affine_classification(hidden_layer, classification_size)
+# classification_loss_function(type)
+# 
+# 
+
 class ThreeLayerConvNet(object):
   """
   A three-layer convolutional network with the following architecture:
@@ -36,7 +46,27 @@ class ThreeLayerConvNet(object):
     self.params = {}
     self.reg = reg
     self.dtype = dtype
-    
+    self.D     = input_dim
+    self.H     = hidden_dim
+    self.C     = num_classes
+
+    self.weight_scale = weight_scale
+    self.filter_size = filter_size
+    self.num_filters = num_filters
+
+    #convolution size: [depth(filter/color), height(spatial), width(spatial)]
+    #input_dim (3,32,32)-> (32,32,32)
+    # with filters being (3,7,7) [with 32 of them]
+    #relu -> maintains shape
+    # 32,32,32 -> 32,32,32
+    # 2x2 max pool (reduces spatial dimensions,  Height -> (Height - Spatial height) / stride + 1:
+    # 32,32,32 -> 32,16,16
+    # affine
+    # 32,16,16 -> hidden_dim
+    # relu:
+    # hidden
+    # affine
+    # hidden -> n_classes -> softmax
     ############################################################################
     # TODO: Initialize weights and biases for the three-layer convolutional    #
     # network. Weights should be initialized from a Gaussian with standard     #
@@ -47,7 +77,16 @@ class ThreeLayerConvNet(object):
     # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
     # of the output affine layer.                                              #
     ############################################################################
-    pass
+    #conv - relu - 2x2 max pool - affine - relu - affine - softmax
+    #
+    self.params['W1'] = np.random.normal(0,self.weight_scale, (num_filters, filter_size, filter_size))#covnet parameters
+    self.params['b1'] = np.random.normal(0,self.weight_scale, num_filters)
+
+    self.params['W2'] = np.random.normal(0,self.weight_scale, (32,32,hidden_dim))
+    self.params['b2'] = np.random.normal(0,self.weight_scale, hidden_dim)
+
+    self.params['W3'] = np.random.normal(0,self.weight_scale, (hidden_dim,num_classes))
+    self.params['b3'] = np.random.normal(0,self.weight_scale, num_classes)
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
