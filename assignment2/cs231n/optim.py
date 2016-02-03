@@ -105,14 +105,13 @@ def rmsprop(x, dx, config=None):
   # in the next_x variable. Don't forget to update cache value stored in      #  
   # config['cache'].                                                          #
   #############################################################################
-  config['cache']  = decay_rate * cache + (1 - decay_rate) * dx **2
-  next_x = x - learning_rate * dx / np.sqrt(config['cache'] + epsilon)
+  config['cache']  = decay_rate * cache + (1 - decay_rate) * dx.reshape(x.shape) **2
+  next_x = x - learning_rate * dx.reshape(x.shape) / np.sqrt(config['cache'] + epsilon)
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
 
   return next_x, config
-
 
 def adam(x, dx, config=None):
   """
@@ -144,6 +143,7 @@ def adam(x, dx, config=None):
   m             = config['m']
   v             = config['v']
   t             = config['t']
+  x_shape = x.shape
   
   next_x = None
   #############################################################################
@@ -154,9 +154,9 @@ def adam(x, dx, config=None):
   m_hat = None
   v_hat = None
   t += 1
-  m = beta1 * m + (1 - beta1) * dx
-  v = beta2 * v + (1 - beta2) * np.power(dx,2)
-  #think there might be a mistake here (check ordering)
+  m = beta1 * m + (1 - beta1) * dx.reshape(x.shape)
+  v = beta2 * v + (1 - beta2) * np.power(dx,2).reshape(x.shape)
+
   next_x = x - learning_rate * m / (1 - beta1 ** t) / (np.sqrt(v / ( 1 - beta2 ** t)) + epsilon)
 
   config['t'] = t

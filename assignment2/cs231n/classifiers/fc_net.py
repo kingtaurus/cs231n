@@ -94,7 +94,7 @@ class TwoLayerNet(object):
     if y is None:
       return scores
     
-    loss, grads = 0, {}
+    loss, grads = 0., {}
     ############################################################################
     # TODO: Implement the backward pass for the two-layer net. Store the loss  #
     # in the loss variable and gradients in the grads dictionary. Compute data #
@@ -113,7 +113,7 @@ class TwoLayerNet(object):
     dLayer,  grads['W1'], grads['b1'] = affine_backward(dLayer1, _cache_layer_1)
 
     #add regularization
-    loss += 0.5 * self.reg * (np.sum(self.params['W1']*self.params['W1']) + np.sum(self.params['W2']*self.params['W2']))
+    loss        += 0.5 * self.reg * (np.sum(self.params['W1']*self.params['W1']) + np.sum(self.params['W2']*self.params['W2']))
     grads['W1'] += self.reg * self.params['W1']
     grads['W2'] += self.reg * self.params['W2']
     ############################################################################
@@ -182,18 +182,19 @@ class FullyConnectedNet(object):
     # parameters should be initialized to zero.                                #
     ############################################################################
 
+
     for layer, hdim in enumerate(hidden_dims):
+      self.params[('b',layer)] = np.zeros(hdim)
+      if self.use_batchnorm:
+        self.params[("dgamma",layer)] = np.ones(hdim)
+        self.params[("dbeta", layer)] = np.zeros(hdim)
       if layer == 0:
         self.params[('W',layer)] = np.random.normal(0, weight_scale, (input_dim, hdim))
-        if self.use_batchnorm and layer != self.num_layers-2:
-          self.params[("dgamma",layer)] = np.ones(hdim)
-          self.params[("dbeta", layer)] = np.zeros(hdim)
       else:
         self.params[('W',layer)] = np.random.normal(0, weight_scale, (hidden_dims[layer - 1], hdim))
-        if self.use_batchnorm and layer != self.num_layers-2:
-          self.params[("dgamma",layer)] = np.ones(hdim)
-          self.params[("dbeta", layer)] = np.zeros(hdim)
-      self.params[('b',layer)] = np.zeros(hdim)
+
+    self.params[('W', len(hidden_dims))] = np.random.normal(0, weight_scale, (hidden_dims[len(hidden_dims) - 1], num_classes))
+    self.params[('b', len(hidden_dims))] = np.random.normal(0, weight_scale, num_classes)
 
     ############################################################################
     #                             END OF YOUR CODE                             #
@@ -256,22 +257,25 @@ class FullyConnectedNet(object):
     _cache_relu  = {}
     _cache_dropout = {}
     _cache_batchnorm = {}
-    scores = None
 
-    scores, _cache_layer[0] = affine_forward(X, self.params[('W',0)], self.params[('b',0)])
-    if self.use_batchnorm:
-      scores, _cache_batchnorm[0] = batchnorm_forward(scores, self.params[("dgamma",0)], self.params[("dbeta",0)], self.bn_params[0])
+    scores = X
 
-    #so loop over internal
-    for layer in range(1,self.num_layers - 1):
-      scores, _cache_relu[layer]  = relu_forward(scores)
-      if self.use_dropout:
-        scores, _cache_dropout[layer] = dropout_forward(scores, self.dropout_param)
-      scores, _cache_layer[layer] = affine_forward(scores, self.params[('W',layer)], self.params[('b',layer)])
+    # scores, _cache_layer[0] = affine_forward(X, self.params[('W',0)], self.params[('b',0)])
+    # scores, _cache_relu[0]  = relu_forward(scores)
+    # if self.use_dropout:
+    #   scores, _cache_dropout[0] = dropout_forward(scores, self.dropout_param)
 
-      #batch norm comes after affine_forward layers
-      if self.use_batchnorm and layer != self.num_layers -2:
+    #{affine - [batch norm] - relu - [dropout]} x (L - 1) - affine - softmax
+    for layer in range(0,self.num_layers - 1):
+      scores, _cache_layer[layer]       = affine_forward(scores, self.params[('W',layer)], self.params[('b',layer)])
+      if self.use_batchnorm:
         scores, _cache_batchnorm[layer] = batchnorm_forward(scores, self.params[("dgamma",layer)], self.params[("dbeta",layer)], self.bn_params[layer])
+
+      scores, _cache_relu[layer]        = relu_forward(scores)
+      if self.use_dropout:
+        scores, _cache_dropout[layer]   = dropout_forward(scores, self.dropout_param)
+    #LAST LAYER
+    scores, _cache_layer[self.num_layers-1] = affine_forward(scores, self.params[('W',self.num_layers-1)], self.params[('b',self.num_layers-1)])
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -297,24 +301,35 @@ class FullyConnectedNet(object):
     loss, softmax_dx = softmax_loss(scores, y)
     dLayer = softmax_dx
 
-    #scores and softmax_dx have the same shape
-    for layer in reversed(range(1,self.num_layers -1)):
-      if self.use_batchnorm and layer != self.num_layers - 2:
-        dLayer, grads[('dgamma',layer)], grads[('dbeta',layer)] = batchnorm_backward(dLayer, _cache_batchnorm[layer])
-      dLayer, grads[('W',layer)], grads[('b',layer)] = affine_backward(dLayer,  _cache_layer[layer])
+    last_layer = self.num_layers - 1
+    dLayer, grads[('W',last_layer)], grads[('b',last_layer)] = affine_backward(softmax_dx, _cache_layer[last_layer])
+
+    for layer in reversed(range(0, self.num_layers - 1)):
       if self.use_dropout:
         dLayer = dropout_backward(dLayer, _cache_dropout[layer])
-      dLayer = relu_backward(dLayer,   _cache_relu[layer])
+      dLayer = relu_backward(dLayer, _cache_relu[layer])
+      if self.use_batchnorm:
+        dLayer, grads[('dgamma',layer)], grads[('dbeta',layer)] = batchnorm_backward(dLayer, _cache_batchnorm[layer])
+      dLayer,  grads[('W',layer)], grads[('b',layer)] = affine_backward(dLayer, _cache_layer[layer])
+
+    #scores and softmax_dx have the same shape
+    # for layer in reversed(range(1,self.num_layers - 1)):
+    #   if self.use_batchnorm and layer != self.num_layers - 2:
+    #     dLayer, grads[('dgamma',layer)], grads[('dbeta',layer)] = batchnorm_backward(dLayer, _cache_batchnorm[layer])
+    #   dLayer, grads[('W',layer)], grads[('b',layer)] = affine_backward(dLayer,  _cache_layer[layer])
+    #   if self.use_dropout:
+    #     dLayer = dropout_backward(dLayer, _cache_dropout[layer])
+    #   dLayer = relu_backward(dLayer,   _cache_relu[layer])
     
-    if self.use_batchnorm:
-      dLayer, grads[('dgamma',0)], grads[('dbeta',0)] = batchnorm_backward(dLayer, _cache_batchnorm[0])
-    dLayer,  grads[('W',0)], grads[('b',0)] = affine_backward(dLayer, _cache_layer[0])
+    # if self.use_batchnorm:
+    #   dLayer, grads[('dgamma',0)], grads[('dbeta',0)] = batchnorm_backward(dLayer, _cache_batchnorm[0])
+    # dLayer,  grads[('W',0)], grads[('b',0)] = affine_backward(dLayer, _cache_layer[0])
     #
 
     #add regularization
-    for layer in range(self.num_layers-1):
-      loss += 0.5 * self.reg * np.sum(self.params[('W',layer)]*self.params[('W',layer)])
-      grads[('W',layer)] += self.reg * self.params[('W',layer)]
+    for layer in range(self.num_layers):
+        loss += 0.5 * self.reg * np.sum(self.params[('W',layer)]*self.params[('W',layer)])
+        grads[('W',layer)] += self.reg * self.params[('W',layer)]
 
     ############################################################################
     #                             END OF YOUR CODE                             #
