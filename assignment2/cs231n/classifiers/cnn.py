@@ -7,13 +7,15 @@ from cs231n.layer_utils import *
 
 #might be easier to build some helper parameters
 #i.e. filter_bank(count,size,size)
+# build_weights
+# build_layer('type','weight')
 # build_conv_net_layer(input_shape, filter_bank)
 # note: options can be activation, drop, pool, batchnorm, resnet(?)
 # build_affine_connection(filter_bank.shape, hidden_layer)
 # build_affine_classification(hidden_layer, classification_size)
 # classification_loss_function(type)
-# 
-# 
+#
+#
 
 class ThreeLayerConvNet(object):
   """
@@ -100,8 +102,7 @@ class ThreeLayerConvNet(object):
 
     for k, v in self.params.items():
       self.params[k] = v.astype(dtype)
-     
- 
+
   def loss(self, X, y=None):
     """
     Evaluate loss and gradient for the three-layer convolutional network.

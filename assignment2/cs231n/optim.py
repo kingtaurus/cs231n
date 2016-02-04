@@ -113,6 +113,66 @@ def rmsprop(x, dx, config=None):
 
   return next_x, config
 
+def adawindow(x, dx, config=None):
+  #ADAGrad using a rolling window
+  next_x = None
+  if config is None: config = {}
+  config.setdefault('learning_rate', 1e-3)
+  config.setdefault('gradient_list', [])
+  config.setdefault('window_size', 100)
+
+  window_size = config['window_size']
+
+  config['gradient_list'].append(np.linalg.norm(dx))
+  #config['gradient_norm_squared'].append(np.linalg.norm(dx)**2)
+  config['gradient_list'] = config['gradient_list'][-window_size:]
+  #config['gradient_norm_squared'] = config['gradient_norm_squared'][-window_size:]
+
+  grad_norm = np.sqrt(np.sum(np.array(config['gradient_list'])**2))
+  # print(np.linalg.norm(dx),grad_norm )
+  next_x = x - config['learning_rate'] * dx / (np.sqrt(grad_norm) + 1e-10)
+  #note: since dx has already been added, |dx| should be strickly less than np.sqrt(grad_norm)
+
+  return next_x, config
+
+# def adadelta(x, dx, config=None):
+#   #ADAGrad using accumulation buffer to estimate means and variances
+#   next_x = None
+#   if config is None: config = {}
+#   config.setdefault('t',0)
+#   config.setdefault('learning_rate',0.01)
+#   config.setdefault('momentum', 0.9)
+
+#   config.setdefault('mean_dx', np.zeros_like(dx))
+#   config.setdefault('grad_squared', np.zeros_like(dx))
+
+#   config.setdefault('mean_delta_x', np.zeros_like(x))
+#   config.setdefault('delta_x_squared', np.zeros_like(x))
+
+#   #http://caffe.berkeleyvision.org/tutorial/solver.html
+#   t = config['t']
+#   if t == 0:
+#     print(dx.shape, np.mean(dx, axis=0).shape)
+#   momentum = config['momentum']
+#   delta_x = np.zeros_like(x)
+
+#   config['mean_dx']      += momentum * config['mean_dx'] +      (1 - momentum) * np.mean(dx,axis=0)
+#   config['grad_squared'] += momentum * config['grad_squared'] + (1 - momentum) * np.mean(dx**2,axis=0)
+
+#   rms_grad  = np.sqrt(config['grad_squared'] - config['mean_dx'] + 1e-8)
+#   rms_delta = np.sqrt(config['delta_x_squared'] - config['mean_delta_x'] + 1e-8)
+#   delta_x = - dx * np.linalg.norm(rms_delta) / np.linalg.norm(rms_grad)
+#   # if rms_grad > 1000:
+#   #   print(rms_delta / rms_grad)
+
+#   config['mean_delta_x']    += momentum * config['mean_delta_x'] +    (1 - momentum) * delta_x
+#   config['delta_x_squared'] += momentum * config['delta_x_squared'] + (1 - momentum) * delta_x**2
+
+#   next_x = x + config['learning_rate'] * delta_x
+
+#   config['t'] += 1
+#   return next_x, config
+
 def adam(x, dx, config=None):
   """
   Uses the Adam update rule, which incorporates moving averages of both the
