@@ -131,6 +131,7 @@ class KNearestNeighbor(object):
     YY = np.square(self.X_train).sum(axis=1)
     XY = np.dot(X, self.X_train.T)
     dists = np.sqrt(np.matrix(XX).T + YY - 2 * XY)
+
     # print(np.matrix(XX).T.shape)
     # print(YY.T.shape)
     # print(YY.shape)
@@ -167,6 +168,7 @@ class KNearestNeighbor(object):
     """
     num_test = dists.shape[0]
     y_pred = np.zeros(num_test)
+
     for i in range(num_test):
       # A list of length k storing the labels of the k nearest neighbors to
       # the ith test point.
@@ -179,10 +181,8 @@ class KNearestNeighbor(object):
       # Hint: Look up the function numpy.argsort.                             #
       #########################################################################
       k_closest_points = np.array(np.argsort(dists[i,:])).reshape(-1,)[:k]
-
-      closest_y = list(self.y_train[k_closest_points])
-
       closest_classes = self.y_train[k_closest_points]
+      closest_y       = closest_classes[0]
       #########################################################################
       # TODO:                                                                 #
       # Now that you have found the labels of the k nearest neighbors, you    #
@@ -190,63 +190,33 @@ class KNearestNeighbor(object):
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
-      #this is testing code (using a size of 4)
-      #then there are a bunch of cases that can be used to verify the way things
-      #work
-      #
-      # THIS code should be refactored into function calls
-      # (1) NEED unit tests
-      # print(np.bincount(self.y_train[dists[i,:].argsort()[:4]]))
-      #print(self.y_train[dists[i,:].argsort()])
-      #print(self.y_train[dists[i,:].argsort()].flatten()[0:k])
-      occurences = np.bincount(closest_y)
-
-      #print(occurences)
+      occurences = np.bincount(closest_classes)
       #bincount acts as a counter
+
       max = np.amax(occurences)
       #amax the maximum value in occurences (i.e. the voting rank, giving all occurences the same weight)
-      #print(occurences)
-      #print(max)
-      # print("result = ", np.argwhere(occurences == max).flatten())
-      #print("result = ", np.argwhere(occurences == max).flatten())
-      max_classes = list(np.argwhere(occurences == max).flatten())
-      #print(max_classes)
-      #print(occurences)
+
+      max_classes = np.argwhere(occurences == max).flatten()
       if k > 2 and len(max_classes) > 1:
         #if max is greater than one and there are multiple values of max
         #   in occurences ==> this implies something like this has occured:
-        #   [2 0 2 0 ] ==> [0 2] ==> want minimal distance
-        # print("multiple occurences")
+        #   [2 0 1 0 2] ==> [0 2] ==> want minimal distance (of the max occurences);
 
-        #this should be optimized by removing function calls that make duplicate data structures
-        # .... dists[i,:].argsort()
-        # .... np.argwhere(occurences == max).flatten()
         from collections import defaultdict
         class_to_total_dist   = defaultdict(int)
-        # for x in k_closest_points:
-        #     if self.y_train[x] in max_classes:
-        #         closest_y.append(self.y_train[x])
-
-        #Can't use Counter: Elements with equal counts are ordered arbitrarily:
+        #Can't use Counter: Elements with equal counts are ordered arbitrarily;
 
         for x in k_closest_points:
             if self.y_train[x] in max_classes:
                 class_to_total_dist[self.y_train[x]] += dists[i,x]**2
-        # print(class_to_total_dist)
-        closest_y = [min(class_to_total_dist, key=class_to_total_dist.get)]
-        # print(closest_y)
-        ## use l2 norm to add distances
-        # print(class_to_total_dist)
-        # print(min(class_to_total_dist, key=class_to_total_dist.get))
-        #print(class_to_total_dist)
-        # closest_y = [min(class_to_total_dist, key=class_to_total_dist.get)]
-        #print(closest_y)
-        #if float(max) > float(k)/2 + 0.0001:
-        y_pred[i] =  closest_y[0]
-        #########################################################################
-        #                           END OF YOUR CODE                            #
-        #########################################################################
-
+        closest_min_y = [min(class_to_total_dist, key=class_to_total_dist.get)]
+        closest_y = closest_min_y[0]
+        #take the minimum element and put it into closest_y
+        #NOTE: that closest_y is set earlier to the first element of closest_classes;
+      y_pred[i] =  int(closest_y)
+    #########################################################################
+    #                           END OF YOUR CODE                            #
+    #########################################################################
     return y_pred
 
   def predict_proba_labels(self, dists, k=1):
@@ -265,16 +235,15 @@ class KNearestNeighbor(object):
         """
         num_test    = dists.shape[0]
         num_classes = len(np.unique(self.y_train))
-        y_pred = np.zeros((num_test,num_classes))
+        y_pred      = np.zeros((num_test,num_classes))
+        occurences  = np.zeros(num_classes)
+
         for i in range(num_test):
             # A list of length k storing the labels of the k nearest neighbors to
             # the ith test point.
             closest_y = []
             k_closest_points = np.array(np.argsort(dists[i,:])).reshape(-1,)[:k]
-            closest_y = list(self.y_train[k_closest_points])
             closest_classes = self.y_train[k_closest_points]
-            occurences = np.zeros(num_classes)
-            occurences = np.bincount(closest_y, minlength=num_classes)
-            probability = occurences / k
-            y_pred[i] = probability
+            occurences = np.bincount(closest_classes, minlength=num_classes)
+            y_pred[i] = occurences / k
         return y_pred
