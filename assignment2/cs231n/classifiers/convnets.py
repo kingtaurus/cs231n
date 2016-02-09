@@ -144,6 +144,18 @@ class ConvNet(object):
 
 
 
+# class ConvolutionNet(object):
+#     def __init__(self, input_dim=(3,32,32), num_classes=10,weight_scale=1e-3, reg=0.0,dtype=np.float32, seed=None):
+#         pass
+#     def _build_input_layer(self):
+#         pass
+#     def _build_next_layer(self):
+#         pass
+#     def _build_output_layer(self):
+#         pass
+
+
+
 class ConvNet_dropout(object):
     """
     An 'n' layer convolutional network with the following architecture:
