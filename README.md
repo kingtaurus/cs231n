@@ -1,9 +1,7 @@
 Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 ================================================================================
 
-##Assignment 1 (Also applicable for assignment 2 and 3)
-
-
+##Assignment 1
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
 In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier.
 The goals of this assignment are as follows:
@@ -16,6 +14,27 @@ The goals of this assignment are as follows:
 * implement and apply a Two layer neural network classifier
 * understand the differences and tradeoffs between these classifiers
 * get a basic understanding of performance improvements from using higher-level representations than raw pixels (e.g. color histograms, Histogram of Gradient (HOG) features)
+
+##Assignment 2 
+From [Assignment 2 Webpage](http://cs231n.github.io/assignments2016/assignment2/)
+In this assignment you will practice writing backpropagation code, and training Neural Networks and Convolutional Neural Networks. The goals of this assignment are as follows:
+
+* understand Neural Networks and how they are arranged in layered architectures
+* understand and be able to implement (vectorized) backpropagation
+* implement the core parameter update loop of mini-batch gradient descent
+* effectively cross-validate and find the best hyperparameters for Neural Network architecture
+* understand the architecture of Convolutional Neural Networks and train gain experience with training these models on data
+
+##Assignment 3 
+From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment3/)
+In the previous assignment, you implemented and trained your own ConvNets. In this assignment, we will explore many of the ideas we have discussed in lectures. Specifically, you will:
+
+* Reduce overfitting using dropout and data augmentation
+* Combine models into ensembles to boost performance
+* Use transfer learning to adapt a pretrained model to a new dataset
+* Use data gradients to visualize saliency maps and create fooling images
+
+
 
 ###Setup
 You can work on the assignment in one of two ways: locally on your own machine, or on a virtual machine through Terminal.com. I will only detail how to run in locally.
