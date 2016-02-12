@@ -28,7 +28,7 @@ In this assignment you will practice writing backpropagation code, and training 
 * understand the architecture of Convolutional Neural Networks and train gain experience with training these models on data
 
 ##Assignment 3 
-From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
+From [Assignment 3 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
 
 In the previous assignment, you implemented and trained your own ConvNets. In this assignment, we will explore many of the ideas we have discussed in lectures. Specifically, you will:
 
