@@ -3,6 +3,7 @@ Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 
 ##Assignment 1
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
+
 In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier.
 The goals of this assignment are as follows:
 * understand the basic Image Classification pipeline and the data-driven approach (train/predict stages)
@@ -16,7 +17,8 @@ The goals of this assignment are as follows:
 * get a basic understanding of performance improvements from using higher-level representations than raw pixels (e.g. color histograms, Histogram of Gradient (HOG) features)
 
 ##Assignment 2 
-From [Assignment 2 Webpage](http://cs231n.github.io/assignments2016/assignment2/)
+From [Assignment 2 Webpage](http://cs231n.github.io/assignments2016/assignment2/):
+
 In this assignment you will practice writing backpropagation code, and training Neural Networks and Convolutional Neural Networks. The goals of this assignment are as follows:
 
 * understand Neural Networks and how they are arranged in layered architectures
@@ -26,7 +28,8 @@ In this assignment you will practice writing backpropagation code, and training 
 * understand the architecture of Convolutional Neural Networks and train gain experience with training these models on data
 
 ##Assignment 3 
-From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment3/)
+From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
+
 In the previous assignment, you implemented and trained your own ConvNets. In this assignment, we will explore many of the ideas we have discussed in lectures. Specifically, you will:
 
 * Reduce overfitting using dropout and data augmentation
