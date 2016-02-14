@@ -101,7 +101,7 @@ class CaptioningSolver(object):
 
     # Throw an error if there are extra keyword arguments
     if len(kwargs) > 0:
-      extra = ', '.join('"%s"' % k for k in kwargs.keys())
+      extra = ', '.join('"%s"' % k for k in list(kwargs.keys()))
       raise ValueError('Unrecognized arguments %s' % extra)
 
     # Make sure the update rule exists, then replace the string
@@ -129,7 +129,7 @@ class CaptioningSolver(object):
     # Make a deep copy of the optim_config for each parameter
     self.optim_configs = {}
     for p in self.model.params:
-      d = {k: v for k, v in self.optim_config.iteritems()}
+      d = {k: v for k, v in self.optim_config.items()}
       self.optim_configs[p] = d
 
 
@@ -149,7 +149,7 @@ class CaptioningSolver(object):
     self.loss_history.append(loss)
 
     # Perform a parameter update
-    for p, w in self.model.params.iteritems():
+    for p, w in self.model.params.items():
       dw = grads[p]
       config = self.optim_configs[p]
       next_w, next_config = self.update_rule(w, dw, config)

@@ -9,7 +9,7 @@ def load_coco_data(base_dir='cs231n/datasets/coco_captioning',
   data = {}
   caption_file = os.path.join(base_dir, 'coco2014_captions.h5')
   with h5py.File(caption_file, 'r') as f:
-    for k, v in f.iteritems():
+    for k, v in f.items():
       data[k] = np.asarray(v)
 
   if pca_features:
@@ -29,7 +29,7 @@ def load_coco_data(base_dir='cs231n/datasets/coco_captioning',
   dict_file = os.path.join(base_dir, 'coco2014_vocab.json')
   with open(dict_file, 'r') as f:
     dict_data = json.load(f)
-    for k, v in dict_data.iteritems():
+    for k, v in dict_data.items():
       data[k] = v
 
   train_url_file = os.path.join(base_dir, 'train2014_urls.txt')
