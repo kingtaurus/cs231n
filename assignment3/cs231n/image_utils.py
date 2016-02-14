@@ -93,6 +93,6 @@ def image_from_url(url):
     os.remove(fname)
     return img
   except urllib2.URLError as e:
-    print 'URL Error: ', e.reason, url
+    print('URL Error: ', e.reason, url)
   except urllib2.HTTPError as e:
-    print 'HTTP Error: ', e.code, url
+    print('HTTP Error: ', e.code, url)

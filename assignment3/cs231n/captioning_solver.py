@@ -213,8 +213,8 @@ class CaptioningSolver(object):
 
       # Maybe print training loss
       if self.verbose and t % self.print_every == 0:
-        print '(Iteration %d / %d) loss: %f' % (
-               t + 1, num_iterations, self.loss_history[-1])
+        print('(Iteration %d / %d) loss: %f' % (
+               t + 1, num_iterations, self.loss_history[-1]))
 
       # At the end of every epoch, increment the epoch counter and decay the
       # learning rate.
