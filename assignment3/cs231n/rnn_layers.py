@@ -32,7 +32,8 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
   # hidden state and any values you need for the backward pass in the next_h   #
   # and cache variables respectively.                                          #
   ##############################################################################
-  pass
+  next_h = np.tanh(np.dot(prev_h, Wh) + np.dot(x, Wx) + b)
+  cache = Wh, prev_h, Wx, x, b, next_h
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -61,7 +62,16 @@ def rnn_step_backward(dnext_h, cache):
   # HINT: For the tanh function, you can compute the local derivative in terms #
   # of the output value from tanh.                                             #
   ##############################################################################
-  pass
+  Wh, prev_h, Wx, x, b, next_h = cache
+  dx = np.zeros_like(x)
+  dprev_h
+
+  df = (1 - np.square(next_h))*dnext_h
+  dx      = np.dot(df, Wx.T)
+  dprev_h = np.dot(df, Wh.T)
+  dWx     = np.dot(x.T, df)
+  dWh     = np.dot(prev_h.T, df)
+  db      = np.sum(df, axis=0)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -92,7 +102,19 @@ def rnn_forward(x, h0, Wx, Wh, b):
   # input data. You should use the rnn_step_forward function that you defined  #
   # above.                                                                     #
   ##############################################################################
-  pass
+  N = x.shape[0]
+  T = x.shape[1]
+  H = Wh.shape[0]
+  #def rnn_step_forward(x, prev_h, Wx, Wh, b):
+  h = np.zeros((N,T,H))
+  #so, need to grab T vectors and RNN it up
+  x = x.transpose((1,0,2))
+  h_i = h0
+  for idx, x_i in enumerate(x):
+	h_i, _     = rnn_step_forward(x_i, h_i, Wx, Wh, b)
+	h[:,idx,:] = h_i
+  #Wh, prev_h, Wx, x, b, next_h
+  cache = Wh, h0, Wx, x, b
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -134,7 +156,7 @@ def word_embedding_forward(x, W):
   
   Inputs:
   - x: Integer array of shape (N, T) giving indices of words. Each element idx
-    of x muxt be in the range 0 <= idx < V.
+	of x muxt be in the range 0 <= idx < V.
   - W: Weight matrix of shape (V, D) giving word vectors for all words.
   
   Returns a tuple of:
@@ -389,9 +411,9 @@ def temporal_softmax_loss(x, y, mask, verbose=False):
   Inputs:
   - x: Input scores, of shape (N, T, V)
   - y: Ground-truth indices, of shape (N, T) where each element is in the range
-       0 <= y[i, t] < V
+	   0 <= y[i, t] < V
   - mask: Boolean array of shape (N, T) where mask[i, t] tells whether or not
-    the scores at x[i, t] should contribute to the loss.
+	the scores at x[i, t] should contribute to the loss.
 
   Returns a tuple of:
   - loss: Scalar giving loss
