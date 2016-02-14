@@ -59,9 +59,9 @@ def decode_captions(captions, idx_to_word):
     captions = captions[None]
   decoded = []
   N, T = captions.shape
-  for i in xrange(N):
+  for i in range(N):
     words = []
-    for t in xrange(T):
+    for t in range(T):
       word = idx_to_word[captions[i, t]]
       if word != '<NULL>':
         words.append(word)

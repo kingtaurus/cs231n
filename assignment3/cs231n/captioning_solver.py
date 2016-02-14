@@ -189,7 +189,7 @@ class CaptioningSolver(object):
     if N % batch_size != 0:
       num_batches += 1
     y_pred = []
-    for i in xrange(num_batches):
+    for i in range(num_batches):
       start = i * batch_size
       end = (i + 1) * batch_size
       scores = self.model.loss(X[start:end])
@@ -208,7 +208,7 @@ class CaptioningSolver(object):
     iterations_per_epoch = max(num_train / self.batch_size, 1)
     num_iterations = self.num_epochs * iterations_per_epoch
 
-    for t in xrange(num_iterations):
+    for t in range(num_iterations):
       self._step()
 
       # Maybe print training loss

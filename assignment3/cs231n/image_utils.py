@@ -25,7 +25,7 @@ def blur_image(X):
   w_blur = np.zeros((3, 3, 3, 3))
   b_blur = np.zeros(3)
   blur_param = {'stride': 1, 'pad': 1}
-  for i in xrange(3):
+  for i in range(3):
     w_blur[i, i] = np.asarray([[1, 2, 1], [2, 188, 2], [1, 2, 1]], dtype=np.float32)
   w_blur /= 200.0
   return conv_forward_fast(X, w_blur, b_blur, blur_param)[0]

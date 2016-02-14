@@ -41,13 +41,13 @@ def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=1000,
     X_train, y_train, X_test, y_test = load_CIFAR10(cifar10_dir)
         
     # Subsample the data
-    mask = range(num_training, num_training + num_validation)
+    mask = list(range(num_training, num_training + num_validation))
     X_val = X_train[mask]
     y_val = y_train[mask]
-    mask = range(num_training)
+    mask = list(range(num_training))
     X_train = X_train[mask]
     y_train = y_train[mask]
-    mask = range(num_test)
+    mask = list(range(num_test))
     X_test = X_test[mask]
     y_test = y_test[mask]
 
