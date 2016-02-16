@@ -30,14 +30,15 @@ In this assignment you will practice writing backpropagation code, and training 
 ##Assignment 3 
 From [Assignment 3 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
 
-In the previous assignment, you implemented and trained your own ConvNets. In this assignment, we will explore many of the ideas we have discussed in lectures. Specifically, you will:
+In this assignment you will implement recurrent networks, and apply them to image captioning on Microsoft COCO. We will also introduce the TinyImageNet dataset, and use a pretrained model on this dataset to explore different applications of image gradients.
 
-* Reduce overfitting using dropout and data augmentation
-* Combine models into ensembles to boost performance
-* Use transfer learning to adapt a pretrained model to a new dataset
-* Use data gradients to visualize saliency maps and create fooling images
-
-
+The goals of this assignment are as follows:
+* Understand the architecture of recurrent neural networks (RNNs) and how they operate on sequences by sharing weights over time
+* Understand the difference between vanilla RNNs and Long-Short Term Memory (LSTM) RNNs
+* Understand how to sample from an RNN at test-time
+* Understand how to combine convolutional neural nets and recurrent nets to implement an image captioning system
+* Understand how a trained convolutional network can be used to compute gradients with respect to the input image
+* Implement and different applications of image gradients, including saliency maps, fooling images, class visualizations, feature inversion, and DeepDream.
 
 ###Setup
 You can work on the assignment in one of two ways: locally on your own machine, or on a virtual machine through Terminal.com. I will only detail how to run in locally.
