@@ -6,8 +6,6 @@ Details about this assignment can be found [on the course webpage](http://cs231n
 
 The IPython Notebook [knn.ipynb](assignment1/) will walk you through implementing the kNN classifier.
 
-%https://github.com/username/repo/blob/branch/docs/more_words.md
-
 ##Q2: Training a Support Vector Machine (25 points)
 
 The IPython Notebook svm.ipynb will walk you through implementing the SVM classifier.
