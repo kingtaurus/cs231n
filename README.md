@@ -1,5 +1,10 @@
 Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 ================================================================================
+## Notes:
+* Certain features may require a compiler to be installed; (Visual Studio C++ compiler, GCC, clang)
+* Code base is stored in separate assignment directories; with ipython notebooks used for running and displaying results;
+* Within each assignment directory there is a series of small python modules (that handle feature implementation see [`cs231n`](https://github.com/kingtaurus/cs231n/tree/master/assignment1/cs231n));
+* Within each assignment directory there is a dataset directory, with a series of scripts to download images (see  [`cs231n/datasets`](https://github.com/kingtaurus/cs231n/tree/master/assignment1/cs231n/datasets))
 
 ##[`Assignment 1`](https://github.com/kingtaurus/cs231n/tree/master/assignment1)
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
