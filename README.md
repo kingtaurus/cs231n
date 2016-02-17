@@ -1,11 +1,11 @@
 Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 ================================================================================
 
-##Assignment 1
+##[`Assignment 1`](https://github.com/kingtaurus/cs231n/tree/master/assignment1)
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
 
-In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier.
-The goals of this assignment are as follows:
+In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment1/README.md). The goals of this assignment are as follows:
+
 * understand the basic Image Classification pipeline and the data-driven approach (train/predict stages)
 * understand the train/val/test splits and the use of validation data for hyperparameter tuning.
 * develop proficiency in writing efficient vectorized code with numpy
@@ -16,10 +16,10 @@ The goals of this assignment are as follows:
 * understand the differences and tradeoffs between these classifiers
 * get a basic understanding of performance improvements from using higher-level representations than raw pixels (e.g. color histograms, Histogram of Gradient (HOG) features)
 
-##Assignment 2 
+##[`Assignment 2 `](https://github.com/kingtaurus/cs231n/tree/master/assignment2)
 From [Assignment 2 Webpage](http://cs231n.github.io/assignments2016/assignment2/):
 
-In this assignment you will practice writing backpropagation code, and training Neural Networks and Convolutional Neural Networks. The goals of this assignment are as follows:
+In this assignment you will practice writing backpropagation code, and training Neural Networks and Convolutional Neural Networks. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment2/README.md). The goals of this assignment are as follows:
 
 * understand Neural Networks and how they are arranged in layered architectures
 * understand and be able to implement (vectorized) backpropagation
@@ -30,12 +30,11 @@ In this assignment you will practice writing backpropagation code, and training 
 * effectively cross-validate and find the best hyperparameters for Neural Network architecture
 * understand the architecture of Convolutional Neural Networks and train gain experience with training these models on data
 
-##Assignment 3 
+##[`Assignment 3`](https://github.com/kingtaurus/cs231n/tree/master/assignment3)
 From [Assignment 3 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
 
-In this assignment you will implement recurrent networks, and apply them to image captioning on Microsoft COCO. We will also introduce the TinyImageNet dataset, and use a pretrained model on this dataset to explore different applications of image gradients.
+In this assignment you will implement recurrent networks, and apply them to image captioning on Microsoft COCO. We will also introduce the TinyImageNet dataset, and use a pretrained model on this dataset to explore different applications of image gradients. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment3/README.md). The goals of this assignment are as follows:
 
-The goals of this assignment are as follows:
 * Understand the architecture of recurrent neural networks (RNNs) and how they operate on sequences by sharing weights over time
 * Understand the difference between vanilla RNNs and Long-Short Term Memory (LSTM) RNNs
 * Understand how to sample from an RNN at test-time
