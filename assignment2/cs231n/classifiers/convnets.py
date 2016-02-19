@@ -6,8 +6,8 @@ from cs231n.layer_utils import *
 
 def after_max_pool_size(in_size, pool_size, pool_stride):
     assert len(in_size)==3
-    return (in_size[0], int(1 + (in_size[1] - pool_size[0])/pool_stride), \
-                        int(1 + (in_size[2] - pool_size[1])/pool_stride))
+    return (in_size[0], 1 + (in_size[1] - pool_size[0])//pool_stride, \
+                        1 + (in_size[2] - pool_size[1])//pool_stride)
 
 class ConvNet(object):
     """
@@ -109,7 +109,7 @@ class ConvNet(object):
     
         # pass conv_param to the forward pass for the convolutional layer
         filter_size = W1.shape[2]
-        conv_param = {'stride': int(1), 'pad': int((filter_size - 1) / 2)}
+        conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
@@ -263,7 +263,7 @@ class ConvNet_dropout(object):
     
         # pass conv_param to the forward pass for the convolutional layer
         filter_size = W1.shape[2]
-        conv_param = {'stride': int(1), 'pad': int((filter_size - 1) / 2)}
+        conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}

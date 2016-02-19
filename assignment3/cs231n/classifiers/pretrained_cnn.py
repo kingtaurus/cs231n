@@ -54,7 +54,7 @@ class PretrainedCNN(object):
     self.params['W%d' % (i + 3)] = np.sqrt(2.0 / hidden_dim) * np.random.randn(hidden_dim, num_classes)
     self.params['b%d' % (i + 3)] = np.zeros(num_classes)
     
-    for k, v in self.params.iteritems():
+    for k, v in self.params.items():
       self.params[k] = v.astype(dtype)
 
     if h5_file is not None:
@@ -77,7 +77,7 @@ class PretrainedCNN(object):
     loss, grads = self.loss(x, y)
 
     with h5py.File(h5_file, 'r') as f:
-      for k, v in f.iteritems():
+      for k, v in f.items():
         v = np.asarray(v)
         if k in self.params:
           if verbose: print(k, v.shape, self.params[k].shape)
@@ -98,7 +98,7 @@ class PretrainedCNN(object):
           self.bn_params[i]['running_var'] = v.copy()
           if verbose: print(k, v.shape)
         
-    for k, v in self.params.iteritems():
+    for k, v in self.params.items():
       self.params[k] = v.astype(self.dtype)
 
   

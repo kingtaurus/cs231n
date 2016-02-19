@@ -91,7 +91,7 @@ class ThreeLayerConvNet(object):
     # (num_filter, height/2, width/2) -> hidden_dim
     # Weights have shape num_filter, height/2, width/2, hidden_dim
 
-    self.params['W2'] = np.random.normal(0,self.weight_scale, (num_filters, int(height/2), int(width/2), hidden_dim))
+    self.params['W2'] = np.random.normal(0,self.weight_scale, (num_filters, height//2, width//2, hidden_dim))
     self.params['b2'] = np.random.normal(0,self.weight_scale, hidden_dim)
 
     self.params['W3'] = np.random.normal(0,self.weight_scale, (hidden_dim,num_classes))
@@ -115,7 +115,7 @@ class ThreeLayerConvNet(object):
     
     # pass conv_param to the forward pass for the convolutional layer
     filter_size = W1.shape[2]
-    conv_param = {'stride': int(1), 'pad': int((filter_size - 1) / 2)}
+    conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
 
     # pass pool_param to the forward pass for the max-pooling layer
     pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}

@@ -464,6 +464,16 @@ def dropout_backward(dout, cache):
     dx = dout
   return dx
 
+def conv_forward_scipy(x, w, b, conv_param):
+  import scipy.signal.convolve2d as convolve
+  #note parameters will have to be grabbed from conv_param
+  #added to a keyword dictionary
+  #passed into convolve
+  out = convolve(x, w, boundary="fill", mode="same", fillvalue=0)
+  out += b
+  return out
+  #need correct broadcast shape for b.
+
 
 def conv_forward_naive(x, w, b, conv_param):
   """
@@ -496,11 +506,11 @@ def conv_forward_naive(x, w, b, conv_param):
   N, C, H, W   = x.shape
   F, _, HH, WW = w.shape
 
-  pad    = int(conv_param['pad'])
-  stride = int(conv_param['stride'])
+  pad    = conv_param['pad']
+  stride = conv_param['stride']
 
-  height = int(1 + (H + 2 * pad - HH) / stride)
-  width  = int(1 + (W + 2 * pad - WW) / stride)
+  height = 1 + (H + 2 * pad - HH) // stride
+  width  = 1 + (W + 2 * pad - WW) // stride
 
   out = np.zeros((N,F, height, width))
 
@@ -555,11 +565,11 @@ def conv_backward_naive(dout, cache):
   N, C, H, W   = x.shape
   F, _, HH, WW = w.shape
 
-  pad    = int(conv_param['pad'])
-  stride = int(conv_param['stride'])
+  pad    = conv_param['pad']
+  stride = conv_param['stride']
 
-  height = int(1 + (H + 2 * pad - HH) / stride)
-  width  = int(1 + (W + 2 * pad - WW) / stride)
+  height = 1 + (H + 2 * pad - HH) // stride
+  width  = 1 + (W + 2 * pad - WW) // stride
 
   dx = np.zeros(x.shape)
   dw = np.zeros(w.shape)
@@ -612,8 +622,8 @@ def max_pool_forward_naive(x, pool_param):
   stride = pool_param['stride']
 
   N, C, H, W = x.shape
-  height = int(1 + (H - pool_height) / stride)
-  width  = int(1 + (W - pool_width) / stride)
+  height = 1 + (H - pool_height) // stride
+  width  = 1 + (W - pool_width) // stride
 
   out = np.zeros((N,C,height,width))
 
@@ -653,16 +663,16 @@ def max_pool_backward_naive(dout, cache):
   WW = pool_param['pool_width']
   stride = pool_param['stride']
   N, C, H, W = x.shape
-  Hp = 1 + (H - HH) / stride
-  Wp = 1 + (W - WW) / stride
+  Hp = 1 + (H - HH) // stride
+  Wp = 1 + (W - WW) // stride
 
   dx = np.zeros_like(x)
 
   for i in range(N):
     for j in range(C):
-      for k in range(int(Hp)):
+      for k in range(Hp):
         hs = k * stride
-        for l in range(int(Wp)):
+        for l in range(Wp):
           ws = l * stride
 
           # Window (C, HH, WW)
