@@ -63,8 +63,11 @@ def rnn_step_backward(dnext_h, cache):
   # of the output value from tanh.                                             #
   ##############################################################################
   Wh, prev_h, Wx, x, b, next_h = cache
-  dx = np.zeros_like(x)
-  dprev_h
+  dx      = np.zeros_like(x)
+  dWx     = np.zeros_like(Wx)
+  dWh     = np.zeros_like(Wh)
+  db      = np.zeros_like(b)
+  dprev_h = np.zeros_like(prev_h)
 
   df      = (1 - np.square(next_h))*dnext_h
   dx      = np.dot(df, Wx.T)
@@ -102,21 +105,23 @@ def rnn_forward(x, h0, Wx, Wh, b):
   # input data. You should use the rnn_step_forward function that you defined  #
   # above.                                                                     #
   ##############################################################################
-  N = x.shape[0]
-  T = x.shape[1]
-  H = Wh.shape[0]
+  #print(x.shape, h0.shape, Wx.shape, Wh.shape, b.shape)
+  #(2, 3, 4) (2, 5) (4, 5) (5, 5) (5,)
+  N,T,D = x.shape
+  H     = h0.shape[1]
+  h     = np.zeros((N,T,H))
 
-  h = np.zeros((N,T,H))
-  #so, need to grab T vectors and RNN it up
-  x = x.transpose((1,0,2))
-  h_i = h0
-  for idx, x_i in enumerate(x):
-    #def rnn_step_forward(x, prev_h, Wx, Wh, b)
-    h_i, _     = rnn_step_forward(x_i, h_i, Wx, Wh, b)
-    h[:,idx,:] = h_i
-  #Wh, prev_h, Wx, x, b, next_h
+  cache = []
 
-  cache = Wh, h0, Wx, x, b, h
+  for idx in range(T):
+    #rnn_step_forward(x, prev_h, Wx, Wh, b):
+    if idx is 0:
+      h[:,idx,:], c  = rnn_step_forward(x[:,idx,:], h0, Wx, Wh, b)
+      cache.append(c)
+    else:
+      h[:,idx,:], c = rnn_step_forward(x[:,idx,:], h[:,idx-1,:], Wx, Wh, b)
+      cache.append(c)
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -143,18 +148,37 @@ def rnn_backward(dh, cache):
   # sequence of data. You should use the rnn_step_backward function that you   #
   # defined above.                                                             #
   ##############################################################################
-  Wh, h0, Wx, x, b, h = cache
-  dx  = np.zeros_like(x)
-  dh0 = np.zeros_like(h0)
+  Wh, prev_h, Wx, x, b, next_h = cache[0]
+  T = len(cache)
+  dx  = np.zeros((x.shape[0], T, x.shape[1]))
+  dh0 = np.zeros_like(prev_h)
   dWx = np.zeros_like(Wx)
   dWh = np.zeros_like(Wh)
   db  = np.zeros_like(b)
 
-  #
+  #print(dh.shape)
 
-  #transpose it back to like the original shape;
-  #this might be able to switched out with clever use of slicing
-  dx = dx.transpose(1,0,2)
+  for idx in reversed(range(T)):
+    if idx == T - 1:
+      dx_step, dprev_h_step, dWx_step, dWh_step, db_step = rnn_step_backward(dh[:, idx,:], cache[idx])
+    else:
+      dx_step, dprev_h_step, dWx_step, dWh_step, db_step = rnn_step_backward(dh[:, idx, :] + dprev_h_step, cache[idx])
+      #have to modified the prior sets of gradients because we are iterating backward through each production cycle;
+
+    dx[:,idx,:] += dx_step
+    dWx += dWx_step
+    dWh += dWh_step
+    db  += db_step
+    dh0 = dprev_h_step
+  #for idx in reversed(range(T)):
+  # rnn_step_backward 
+  #rnn_step_backward(dnext_h, cache):
+  #Wh, prev_h, Wx, x, b, next_h = cache[0]
+
+  #for Wh, prev_h, Wx, x, b, next_h in reversed(cache):
+  #print(Wh.shape, prev_h.shape, Wx.shape, x.shape, b.shape, next_h.shape)
+
+  #rnn_step_backward => dx, dprev_h, dWx, dWh, db
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -182,7 +206,12 @@ def word_embedding_forward(x, W):
   #                                                                            #
   # HINT: This should be very simple.                                          #
   ##############################################################################
-  pass
+  N,T = x.shape
+  V,D = W.shape
+
+  out = np.zeros((N,T,D))
+  out = W[x]
+  cache = W,x
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -210,7 +239,14 @@ def word_embedding_backward(dout, cache):
   #                                                                            #
   # HINT: Look up the function np.add.at                                       #
   ##############################################################################
-  pass
+  W, x = cache
+  dW = np.zeros_like(W)
+
+  # N, T, D = dout.shape
+  # V = W.shape[0]
+  np.add.at(dW, x, dout)
+
+  #dW = np.add.at(dout, x, dW)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################

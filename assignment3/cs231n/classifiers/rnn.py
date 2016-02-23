@@ -37,7 +37,7 @@ class CaptioningRNN(object):
     self.cell_type = cell_type
     self.dtype = dtype
     self.word_to_idx = word_to_idx
-    self.idx_to_word = {i: w for w, i in word_to_idx.iteritems()}
+    self.idx_to_word = {i: w for w, i in word_to_idx.items()}
     self.params = {}
     
     vocab_size = len(word_to_idx)
@@ -69,7 +69,7 @@ class CaptioningRNN(object):
     self.params['b_vocab'] = np.zeros(vocab_size)
       
     # Cast parameters to correct dtype
-    for k, v in self.params.iteritems():
+    for k, v in self.params.items():
       self.params[k] = v.astype(self.dtype)
 
 
