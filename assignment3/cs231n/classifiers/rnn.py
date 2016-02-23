@@ -135,7 +135,24 @@ class CaptioningRNN(object):
     # defined above to store loss and gradients; grads[k] should give the      #
     # gradients for self.params[k].                                            #
     ############################################################################
-    pass
+    layer_0, cache_0 = affine_forward(features, W_proj, b_proj)
+
+    layer_1, cache_1 = word_embedding_forward(captions_in, W_embed)
+
+    #rnn_forward(x, h0, Wx, Wh, b):
+    layer_2, cache_2 = rnn_forward(layer_1, layer_0, Wx, Wh, b)
+
+    #temporal_affine_forward(x, W, b):
+    layer_3, cache_3 = temporal_affine_forward(layer_2, W_vocab, b_vocab)
+
+    #temporal_softmax_loss(x, y, mask, verbose=False):
+    loss, dTsoft_loss = temporal_softmax_loss(layer_3, captions_out, mask, verbose=False)
+
+    dLayer_2, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dTsoft_loss, cache_3)
+    dLayer_1, dLayer_0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dLayer_2, cache_2)
+    grads['W_embed'] = word_embedding_backward(dLayer_1, cache_1)
+    dLayer_0, grads['W_proj'], grads['b_proj'] = affine_backward(dLayer_0, cache_0)
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -197,7 +214,36 @@ class CaptioningRNN(object):
     # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
     # a loop.                                                                 #
     ###########################################################################
-    pass
+
+    h0, cache_0 = affine_forward(features, W_proj, b_proj)
+    captions[:,0] = self._start
+
+
+    captions_in  = captions[:, :-1]
+    captions_out = captions[:, 1:]
+
+    x, cache_1      = word_embedding_forward(captions_in, W_embed)
+    #rnn_step_forward(x, prev_h, Wx, Wh, b)
+    next_h, cache_2 = rnn_step_forward(x[:,0,:], h0, Wx, Wh, b)
+    y, cache_3      = affine_forward(next_h, W_vocab, b_vocab)
+    captions[:,1]   = np.argmax(y,axis=1)
+    #captions_in     = captions[:, 1:-2]
+
+    idx = 2
+    while True and idx < 30:
+        x, cache_1      = word_embedding_forward(captions_in, W_embed)
+        #rnn_step_forward(x, prev_h, Wx, Wh, b)
+        next_h, cache_2 = rnn_step_forward(x[:,0,:], next_h, Wx, Wh, b)
+        y, cache_3      = affine_forward(next_h, W_vocab, b_vocab)
+        captions[:,idx]   = np.argmax(y,axis=1)
+        # if captions[0,idx] == captions[0,idx-1]:
+        #     y[0,idx] = -np.inf
+        # if captions[1,idx] == captions[1,idx-1]:
+        #     y[1,idx] = -np.inf
+        captions[:,idx] = np.argmax(y,axis=1)
+        idx+=1
+
+    #print(captions)
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################

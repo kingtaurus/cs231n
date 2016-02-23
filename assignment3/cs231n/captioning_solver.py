@@ -205,7 +205,7 @@ class CaptioningSolver(object):
     Run optimization to train the model.
     """
     num_train = self.data['train_captions'].shape[0]
-    iterations_per_epoch = max(num_train / self.batch_size, 1)
+    iterations_per_epoch = max(num_train // self.batch_size, 1)
     num_iterations = self.num_epochs * iterations_per_epoch
 
     for t in range(num_iterations):
