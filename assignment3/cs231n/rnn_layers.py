@@ -346,9 +346,13 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
   dx  = np.zeros_like(x)
   dWx = np.zeros_like(Wx) 
   dprev_h = np.zeros_like(prev_h)
-  dprev_c = np.zeros_like(next_c)
+  dprev_c = np.zeros_like(prev_c)
   dWh     = np.zeros_like(Wh)
   db      = np.zeros_like(b)
+
+  #dprev_c = f * dnext_c
+  #is the gradient of the associated next_c shift
+  dprev_c  = f * (dnext_c + dnext_h * o * ( 1 - np.square(np.tanh(next_c))))
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
