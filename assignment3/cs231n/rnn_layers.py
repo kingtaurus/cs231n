@@ -351,8 +351,35 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
   db      = np.zeros_like(b)
 
   #dprev_c = f * dnext_c
-  #is the gradient of the associated next_c shift
-  dprev_c  = f * (dnext_c + dnext_h * o * ( 1 - np.square(np.tanh(next_c))))
+  #is the gradient (of the loss) w.r.t prev_c when considering next_c (input parameter)
+
+  #dprev_c = f * o * (1 - np.square( np.tanh( next_c))) * dnext_h
+  #is the gradient (of the loss) w.r.t prev_c when considering next_h (input parameter)
+  #might be nicer to define:
+  
+  dnext_c_both = dnext_c + dnext_h * o * ( 1 - np.square(np.tanh(next_c)))
+  dprev_c  = f * (dnext_c_both)
+
+  da_i       = g * ( dnext_c_both )
+  da_f       = prev_c * ( dnext_c_both )
+  da_o       = np.tanh(next_c) * dnext_h
+  da_g       = i * ( dnext_c_both )
+  #backprop into mixing layer
+
+  di = i * (1 - i) * da_i
+  df = f * (1 - f) * da_f
+  do = o * (1 - o) * da_o
+  dg = (1 - np.square(g) ) * da_g
+  #backprop through the activation
+
+  dA = np.hstack((di, df, do, dg))
+  # organize gradient associated with the activation vector
+  db  = np.sum(dA, axis=0)
+  dx  = np.dot(dA, Wx.T)
+  dWx = np.dot(x.T, dA)
+  dprev_h = np.dot(dA, Wh.T)
+  dWh = np.dot(prev_h.T, dA)
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
