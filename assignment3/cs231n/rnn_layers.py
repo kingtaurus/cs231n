@@ -360,19 +360,19 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
   dnext_c_both = dnext_c + dnext_h * o * ( 1 - np.square(np.tanh(next_c)))
   dprev_c  = f * (dnext_c_both)
 
-  da_i       = g * ( dnext_c_both )
-  da_f       = prev_c * ( dnext_c_both )
-  da_o       = np.tanh(next_c) * dnext_h
-  da_g       = i * ( dnext_c_both )
+  di       = g * ( dnext_c_both )
+  df       = prev_c * ( dnext_c_both )
+  do       = np.tanh(next_c) * dnext_h
+  dg       = i * ( dnext_c_both )
   #backprop into mixing layer
 
-  di = i * (1 - i) * da_i
-  df = f * (1 - f) * da_f
-  do = o * (1 - o) * da_o
-  dg = (1 - np.square(g) ) * da_g
+  da_i = i * (1 - i) * di
+  da_f = f * (1 - f) * df
+  da_o = o * (1 - o) * do
+  da_g = (1 - np.square(g) ) * dg
   #backprop through the activation
 
-  dA = np.hstack((di, df, do, dg))
+  dA = np.hstack((da_i, da_f, da_o, da_g))
   # organize gradient associated with the activation vector
   db  = np.sum(dA, axis=0)
   dx  = np.dot(dA, Wx.T)
