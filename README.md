@@ -84,3 +84,9 @@ After you have the **CIFAR-10** data, you should start the IPython notebook serv
 
 **NOTE:** 
 If you are working in a virtual environment on OSX, you may encounter errors with matplotlib due to the [issues described here](http://matplotlib.org/faq/virtualenv_faq.html). You can work around this issue by starting the IPython server using the `start_ipython_osx.sh` script from the `assignment1` directory; the script assumes that your virtual environment is named `.env`.
+
+#####Old Assignments
+The assignments from the prior quarter (Winter 2015). There is a large amount of overlap between the three assignments for Winter 2015-2016. Details of `assignment 1`, `assignment 2`, and `assignment 3` README.
+
+##### Project
+Segmentation? Object Detection? Classification? 
