@@ -1,6 +1,6 @@
 import numpy as np
 
-class KNearestNeighbor:
+class KNearestNeighbor(object):
   """ a kNN classifier with L2 distance """
 
   def __init__(self):
@@ -66,7 +66,7 @@ class KNearestNeighbor:
         # Compute the l2 distance between the ith test point and the jth    #
         # training point, and store the result in dists[i, j]               #
         #####################################################################
-        pass
+        dists[i, j] = np.linalg.norm(X[i] - self.X_train[j])
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -88,7 +88,7 @@ class KNearestNeighbor:
       # Compute the l2 distance between the ith test point and all training #
       # points, and store the result in dists[i, :].                        #
       #######################################################################
-      pass
+      dists[i, :] = np.linalg.norm(X[i] - self.X_train[:], axis=1)
       #######################################################################
       #                         END OF YOUR CODE                            #
       #######################################################################
@@ -103,7 +103,7 @@ class KNearestNeighbor:
     """
     num_test = X.shape[0]
     num_train = self.X_train.shape[0]
-    dists = np.zeros((num_test, num_train)) 
+    dists = np.zeros((num_test, num_train))
     #########################################################################
     # TODO:                                                                 #
     # Compute the l2 distance between all test points and all training      #
@@ -112,7 +112,11 @@ class KNearestNeighbor:
     # HINT: Try to formulate the l2 distance using matrix multiplication    #
     #       and two broadcast sums.                                         #
     #########################################################################
-    pass
+    XX = np.square(X).sum(axis=1)
+    YY = np.square(self.X_train).sum(axis=1)
+    XY = np.dot(X, self.X_train.T)
+    #Transpose is required to ensure broadcasting
+    dists = np.sqrt(np.matrix(XX).T + YY - 2 * XY)
     #########################################################################
     #                         END OF YOUR CODE                              #
     #########################################################################
@@ -144,7 +148,9 @@ class KNearestNeighbor:
       # neighbors. Store these labels in closest_y.                           #
       # Hint: Look up the function numpy.argsort.                             #
       #########################################################################
-      pass
+      k_closest_points = np.array(np.argsort(dists[i,:])).reshape(-1,)[:k]
+      closest_classes = self.y_train[k_closest_points]
+      closest_y       = closest_classes[0]
       #########################################################################
       # TODO:                                                                 #
       # Now that you have found the labels of the k nearest neighbors, you    #
@@ -152,7 +158,21 @@ class KNearestNeighbor:
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
-      pass
+      occurences = np.bincount(closest_classes)
+      max = np.amax(occurences)
+      #amax the maximum value in occurences (i.e. the voting rank, giving all occurences the same weight)
+
+      max_classes = np.argwhere(occurences == max).flatten()
+      if k > 2 and len(max_classes) > 1:
+        from collections import defaultdict
+        class_to_total_dist   = defaultdict(int)
+        for x in k_closest_points:
+          if self.y_train[x] in max_classes:
+            class_to_total_dist[self.y_train[x]] += dists[i,x]**2
+        closest_min_y = [min(class_to_total_dist, key=class_to_total_dist.get)]
+        closest_y = closest_min_y[0]
+      y_pred[i] =  int(closest_y)
+
       #########################################################################
       #                           END OF YOUR CODE                            # 
       #########################################################################
