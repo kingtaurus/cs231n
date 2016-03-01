@@ -254,14 +254,14 @@ class CaptioningRNN(object):
             next_h, cache_2 = rnn_step_forward(x[:,0,:], next_h, Wx, Wh, b)
             y, cache_3      = affine_forward(next_h, W_vocab, b_vocab)
             captions_out[:,idx] = np.argmax(y,axis=1)
-            if captions_out[0,idx] == 2:
+            if np.all(captions_out[:,idx] == 2):
                 break
             idx += 1
     elif self.cell_type == "lstm":
         next_c = np.zeros_like(h0)
         next_h, next_c, cache_2 = lstm_step_forward(x[:,0,:], h0, next_c, Wx, Wh, b)
-        y, cache_3      = affine_forward(next_h, W_vocab, b_vocab)
-        captions_out[:,idx]   = np.argmax(y,axis=1)
+        y, cache_3              = affine_forward(next_h, W_vocab, b_vocab)
+        captions_out[:,idx]     = np.argmax(y,axis=1)
         idx = 1
         while idx < max_length - 1:
             #
@@ -269,7 +269,7 @@ class CaptioningRNN(object):
             next_h, next_c, cache_2 = lstm_step_forward(x[:,0,:], next_h, next_c, Wx, Wh, b)
             y, cache_3      = affine_forward(next_h, W_vocab, b_vocab)
             captions_out[:,idx] = np.argmax(y,axis=1)
-            if captions_out[0,idx] == 2:
+            if np.all(captions_out[:,idx] == 2):
                 break
             idx += 1
     else:
