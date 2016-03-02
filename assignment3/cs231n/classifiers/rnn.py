@@ -67,7 +67,12 @@ class CaptioningRNN(object):
     self.params['W_vocab'] = np.random.randn(hidden_dim, vocab_size)
     self.params['W_vocab'] /= np.sqrt(hidden_dim)
     self.params['b_vocab'] = np.zeros(vocab_size)
-      
+
+    #currently not used
+    self.b_list  = []
+    self.Wx_list = []
+    self.Wh_list = []
+
     # Cast parameters to correct dtype
     for k, v in self.params.items():
       self.params[k] = v.astype(self.dtype)
@@ -109,6 +114,13 @@ class CaptioningRNN(object):
 
     # Input-to-hidden, hidden-to-hidden, and biases for the RNN
     Wx, Wh, b = self.params['Wx'], self.params['Wh'], self.params['b']
+
+    #
+    if self.cell_type == "rnn":
+        self.b_list.append(np.array(b))
+        self.Wx_list.append(Wx.flatten())
+        self.Wh_list.append(Wh.flatten())
+    #
 
     # Weight and bias for the hidden-to-vocab transformation.
     W_vocab, b_vocab = self.params['W_vocab'], self.params['b_vocab']
