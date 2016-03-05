@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle as pickle
 import numpy as np
 import os
 from scipy.misc import imread
@@ -59,7 +59,7 @@ def load_tiny_imagenet(path, dtype=np.float32):
   # Use words.txt to get names for each class
   with open(os.path.join(path, 'words.txt'), 'r') as f:
     wnid_to_words = dict(line.split('\t') for line in f)
-    for wnid, words in wnid_to_words.iteritems():
+    for wnid, words in wnid_to_words.items():
       wnid_to_words[wnid] = [w.strip() for w in words.split(',')]
   class_names = [wnid_to_words[wnid] for wnid in wnids]
 
@@ -68,7 +68,7 @@ def load_tiny_imagenet(path, dtype=np.float32):
   y_train = []
   for i, wnid in enumerate(wnids):
     if (i + 1) % 20 == 0:
-      print 'loading training data for synset %d / %d' % (i + 1, len(wnids))
+      print('loading training data for synset %d / %d' % (i + 1, len(wnids)))
     # To figure out the filenames we need to open the boxes file
     boxes_file = os.path.join(path, 'train', wnid, '%s_boxes.txt' % wnid)
     with open(boxes_file, 'r') as f:

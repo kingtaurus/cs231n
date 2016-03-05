@@ -31,7 +31,7 @@ class LinearClassifier:
 
     # Run stochastic gradient descent to optimize W
     loss_history = []
-    for it in xrange(num_iters):
+    for it in range(num_iters):
       X_batch = None
       y_batch = None
 
@@ -48,7 +48,7 @@ class LinearClassifier:
       self.W += step
 
       if verbose and it % 100 == 0:
-        print 'iteration %d / %d: loss %f' % (it, num_iters, loss)
+        print('iteration %d / %d: loss %f' % (it, num_iters, loss))
 
     return loss_history
 
@@ -105,9 +105,9 @@ def svm_loss_vectorized(W, X, y, reg):
 
   D, num_train = X.shape
   scores = W.dot(X)
-  correct_class_scores = scores[y, range(num_train)]
+  correct_class_scores = scores[y, list(range(num_train))]
   margins = np.maximum(0, scores - correct_class_scores + 1.0)
-  margins[y, range(num_train)] = 0
+  margins[y, list(range(num_train))] = 0
 
   loss_cost = np.sum(margins) / num_train
   loss_reg = 0.5 * reg * np.sum(W * W)
@@ -116,7 +116,7 @@ def svm_loss_vectorized(W, X, y, reg):
 
   dscores = np.zeros(scores.shape)
   dscores[margins > 0] = 1
-  dscores[y, range(num_train)] = -num_pos
+  dscores[y, list(range(num_train))] = -num_pos
 
   dW = dscores.dot(X.T) / num_train + reg * W
 
@@ -147,12 +147,12 @@ def softmax_loss_vectorized(W, X, y, reg):
   p = np.exp(scores)
   p /= np.sum(p, axis = 0)
 
-  loss_cost = -np.sum(np.log(p[y, range(y.size)])) / num_train
+  loss_cost = -np.sum(np.log(p[y, list(range(y.size))])) / num_train
   loss_reg = 0.5 * reg * np.sum(W * W)
   loss = loss_cost + loss_reg
 
   dscores = p
-  dscores[y, range(y.size)] -= 1.0
+  dscores[y, list(range(y.size))] -= 1.0
   dW = dscores.dot(X.T) / num_train + reg * W
 
   return loss, dW

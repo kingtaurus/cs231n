@@ -1,4 +1,4 @@
-import urllib2, os, tempfile
+import urllib.request, urllib.error, urllib.parse, os, tempfile
 
 import numpy as np
 from scipy.misc import imread
@@ -25,7 +25,7 @@ def blur_image(X):
   w_blur = np.zeros((3, 3, 3, 3))
   b_blur = np.zeros(3)
   blur_param = {'stride': 1, 'pad': 1}
-  for i in xrange(3):
+  for i in range(3):
     w_blur[i, i] = np.asarray([[1, 2, 1], [2, 188, 2], [1, 2, 1]], dtype=np.float32)
   w_blur /= 200.0
   return conv_forward_fast(X, w_blur, b_blur, blur_param)[0]
@@ -85,14 +85,14 @@ def image_from_url(url):
   We write the image to a temporary file then read it back. Kinda gross.
   """
   try:
-    f = urllib2.urlopen(url)
+    f = urllib.request.urlopen(url)
     _, fname = tempfile.mkstemp()
     with open(fname, 'wb') as ff:
       ff.write(f.read())
     img = imread(fname)
     os.remove(fname)
     return img
-  except urllib2.URLError as e:
-    print 'URL Error: ', e.reason, url
-  except urllib2.HTTPError as e:
-    print 'HTTP Error: ', e.code, url
+  except urllib.error.URLError as e:
+    print('URL Error: ', e.reason, url)
+  except urllib.error.HTTPError as e:
+    print('HTTP Error: ', e.code, url)

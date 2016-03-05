@@ -59,8 +59,8 @@ class KNearestNeighbor:
     num_test = X.shape[0]
     num_train = self.X_train.shape[0]
     dists = np.zeros((num_test, num_train))
-    for i in xrange(num_test):
-      for j in xrange(num_train):
+    for i in range(num_test):
+      for j in range(num_train):
         dists[i, j] = np.sqrt(np.sum((X[i, :] - self.X_train[j, :]) ** 2))
     return dists
 
@@ -74,7 +74,7 @@ class KNearestNeighbor:
     num_test = X.shape[0]
     num_train = self.X_train.shape[0]
     dists = np.zeros((num_test, num_train))
-    for i in xrange(num_test):
+    for i in range(num_test):
       dists[i, :] = np.sqrt(np.sum((self.X_train - X[i, :]) ** 2, axis=1))
     return dists
 
@@ -109,7 +109,7 @@ class KNearestNeighbor:
     """
     num_test = dists.shape[0]
     y_pred = np.zeros(num_test)
-    for i in xrange(num_test):
+    for i in range(num_test):
       # A list of length k storing the labels of the k nearest neighbors to
       # the ith test point.
       closest_y = []
@@ -118,7 +118,7 @@ class KNearestNeighbor:
       counts = {}
       for y in closest_y:
         counts[y] = counts.get(y, 0) + 1
-      tuples = sorted([(val, key) for key, val in counts.iteritems()], reverse=True)
+      tuples = sorted([(val, key) for key, val in counts.items()], reverse=True)
       y_pred[i] = tuples[0][1]
 
     return y_pred
