@@ -2,9 +2,9 @@ import numpy as np
 try:
   from cs231n.im2col_cython import col2im_cython, im2col_cython
 except ImportError:
-  print 'run the following from the cs231n directory and try again:'
-  print 'python setup.py build_ext --inplace'
-  print 'You may also need to restart your iPython kernel'
+  print('run the following from the cs231n directory and try again:')
+  print('python setup.py build_ext --inplace')
+  print('You may also need to restart your iPython kernel')
 
 from cs231n.im2col import *
 
