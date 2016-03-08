@@ -136,6 +136,10 @@ def two_layer_net(X, model, y=None, reg=0.0):
   dlayer2, grads['W2'], grads['b2'] = affine_backward(dx, cache3)
   dlayer1                           = relu_backward(dlayer2, cache2)
   dLayer0, grads['W1'], grads['b1'] = affine_backward(dlayer1, cache1)
+
+  #gradients need to have regularization term
+  grads['W2'] += reg * W2
+  grads['W1'] += reg * W1
   #############################################################################
   #                              END OF YOUR CODE                             #
   #############################################################################
