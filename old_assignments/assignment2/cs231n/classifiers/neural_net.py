@@ -94,9 +94,9 @@ def two_layer_net(X, model, y=None, reg=0.0):
   from cs231n.layers import affine_forward, relu_forward, softmax_loss
   from cs231n.layers import affine_backward, relu_backward
 
-  layer1, cache = affine_forward(X, W1, b1)
-  layer2, cache = relu_forward(layer1)
-  layer3, cache = affine_forward(layer2, W2, b2)
+  layer1, cache1 = affine_forward(X, W1, b1)
+  layer2, cache2 = relu_forward(layer1)
+  layer3, cache3 = affine_forward(layer2, W2, b2)
 
   scores = layer3
   #############################################################################
@@ -133,10 +133,9 @@ def two_layer_net(X, model, y=None, reg=0.0):
   # and biases. Store the results in the grads dictionary. For example,       #
   # grads['W1'] should store the gradient on W1, and be a matrix of same size #
   #############################################################################
-  grads['W2'] = 0.
-  grads['b2'] = 0.
-  grads['W1'] = 0.
-  grads['b1'] = 0.
+  dlayer2, grads['W2'], grads['b2'] = affine_backward(dx, cache3)
+  dlayer1                           = relu_backward(dlayer2, cache2)
+  dLayer0, grads['W1'], grads['b1'] = affine_backward(dlayer1, cache1)
   #############################################################################
   #                              END OF YOUR CODE                             #
   #############################################################################
