@@ -92,6 +92,7 @@ def two_layer_net(X, model, y=None, reg=0.0):
   ## NOTICE define layer0 = X
   # then behaviour is 'functional' layer(n+1) = f(layer(n) | parameters)
   from cs231n.layers import affine_forward, relu_forward, softmax_loss
+  from cs231n.layers import affine_backward, relu_backward
 
   layer1, cache = affine_forward(X, W1, b1)
   layer2, cache = relu_forward(layer1)
