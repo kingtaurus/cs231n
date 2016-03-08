@@ -31,6 +31,24 @@ def init_two_layer_model(input_size, hidden_size, output_size):
   model['b2'] = np.zeros(output_size)
   return model
 
+def init_two_layer_model_glorot(input_size, hidden_size, output_size, gain=1.0):
+  model = {}
+  glorot_param = np.sqrt(2 / (input_size + hidden_size) ) * gain
+  model['W1'] = glorot_param * np.random.randn(input_size, hidden_size)
+  model['b1'] = np.zeros(hidden_size)
+  model['W2'] = glorot_param *  np.random.randn(hidden_size, output_size)
+  model['b2'] = np.zeros(output_size)
+  return model
+
+def init_two_layer_model_uniform_glorot(input_size, hidden_size, output_size, gain=1.0):
+  model = {}
+  glorot_param = np.sqrt(12 / (input_size + hidden_size) ) * gain
+  model['W1'] = np.random.uniform(low=-glorot_param, high=glorot_param, size=(input_size, hidden_size))
+  model['b1'] = np.zeros(hidden_size)
+  model['W2'] = np.random.uniform(low=-glorot_param, high=glorot_param, size=(hidden_size, output_size))
+  model['b2'] = np.zeros(output_size)
+  return model
+
 def two_layer_net(X, model, y=None, reg=0.0):
   """
   Compute the loss and gradients for a two layer fully connected neural network.
