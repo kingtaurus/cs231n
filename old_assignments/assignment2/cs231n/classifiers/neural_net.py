@@ -70,7 +70,7 @@ def two_layer_net(X, model, y=None, reg=0.0):
   """
 
   # unpack variables from the model dictionary
-  W1,b1,W2,b2 = model['W1'], model['b1'], model['W2'], model['b2']
+  W1, b1, W2, b2 = model['W1'], model['b1'], model['W2'], model['b2']
   N, D = X.shape
 
   # compute the forward pass
@@ -80,7 +80,11 @@ def two_layer_net(X, model, y=None, reg=0.0):
   # Store the result in the scores variable, which should be an array of      #
   # shape (N, C).                                                             #
   #############################################################################
-  pass
+  relu = lambda x: np.maximum(x,0)
+  H, C = W2.shape
+  scores = np.zeros((N,C))
+  layer1 = np.maximum(np.dot(X,W1) + b1,0)
+  scores = np.dot(layer1,W2) + b2
   #############################################################################
   #                              END OF YOUR CODE                             #
   #############################################################################
@@ -98,7 +102,8 @@ def two_layer_net(X, model, y=None, reg=0.0):
   # classifier loss. So that your results match ours, multiply the            #
   # regularization loss by 0.5                                                #
   #############################################################################
-  pass
+  rows = np.sum(np.exp(scores), axis=1) 
+  #grab code from assignment3 (for softmax)
   #############################################################################
   #                              END OF YOUR CODE                             #
   #############################################################################
