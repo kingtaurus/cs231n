@@ -55,7 +55,7 @@ class ClassifierTrainer(object):
     N = X.shape[0]
 
     if sample_batches:
-      iterations_per_epoch = N / batch_size # using SGD
+      iterations_per_epoch = N // batch_size # using SGD
     else:
       iterations_per_epoch = 1 # using GD
     num_iters = num_epochs * iterations_per_epoch
