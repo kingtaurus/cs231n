@@ -304,26 +304,6 @@ def max_pool_backward_naive(dout, cache):
   #############################################################################
   return dx
 
-  #ALTERNATE Attempt, not getting the broadcasting correct
-  # Current Issue is window[:,:] == m
-  # dx_1 = np.zeros_like(x)
-
-  # for k in range(H_prime):
-  #   hs = k * stride
-  #   for l in range(W_prime):
-  #     ws = l * stride
-  #     window = x[:,:,hs:hs+pool_height, ws:ws+pool_width]
-  #     m = np.max(window,axis=(2,3))
-  #     #need to corrctly check window for values in 'm'
-  #     print(np.where(window == m))
-  #     dx_1[:,:, hs:hs+pool_height, ws:ws+pool_width] += (window[:,:] == m) * dout[:,:,k,l].reshape((N,C,1,1))
-  #IDEA: Try to sample dout where window == m (i.e any of the samples)
-
-
-  # print("second set")
-
-
-
 def svm_loss(x, y):
   """
   Computes the loss and gradient using for multiclass SVM classification.
