@@ -87,6 +87,7 @@ def random_contrast(X, scale=(0.8, 1.2)):
   #############################################################################
   l = np.random.uniform(low=scale[0], high=scale[1], size=N).reshape(N,1,1,1)
   out = l * X
+  np.clip(out, a_min=0, a_max=255)
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
@@ -116,8 +117,9 @@ def random_tint(X, scale=(-10, 10)):
   #############################################################################
   # TODO: Implement the random_tint function. Store the result in out.        #
   #############################################################################
-  l = np.random.uniform(low=scale[0], high=scale[1], size=(N,C)).reshape(N,C,1,1)
-  out = l * X
+  l = np.random.randint(low=scale[0], high=scale[1], size=(N,C)).reshape(N,C,1,1)
+  out = l + X
+  out = np.clip(out, a_min=0, a_max=255)
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
