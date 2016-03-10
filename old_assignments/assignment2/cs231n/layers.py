@@ -142,6 +142,19 @@ def conv_forward_naive(x, w, b, conv_param):
   W_prime = 1 + (W + 2 * pad - WW) // stride
 
   out = np.zeros((N,F, H_prime, W_prime))
+
+  #pad N, by 0 on each end
+  #pad C, by 0 on each end
+  padded = np.pad(x, [(0,0),(0,0),(pad,pad),(pad,pad)], 'constant', constant_values=0)
+  for i in range(N):
+    for j in range(F):
+      for k in range(H_prime):
+        hs = k * stride
+        for l in range(W_prime):
+          ws = l * stride
+          window = padded[i,:,hs:hs+HH,ws:ws+WW]
+          out[i,j,k,l] = np.sum(window * w[j]) + b[j]
+  
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -166,7 +179,42 @@ def conv_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the convolutional backward pass.                          #
   #############################################################################
-  pass
+  x, w, b, conv_param = cache
+  dx = np.zeros_like(x)
+  dw = np.zeros_like(w)
+  db = np.zeros_like(b)
+
+  N, C, H, W = x.shape
+  F, C, HH, WW = w.shape
+
+  pad    = conv_param['pad']
+  stride = conv_param['stride']
+
+  H_prime = 1 + (H + 2 * pad - HH) // stride
+  W_prime = 1 + (W + 2 * pad - WW) // stride
+
+  out = np.zeros((N,F, H_prime, W_prime))
+
+  #pad N, by 0 on each end
+  #pad C, by 0 on each end
+  padded    = np.pad(x, [(0,0),(0,0),(pad,pad),(pad,pad)], 'constant', constant_values=0)
+  padded_dx = np.pad(dx, [(0,0),(0,0),(pad,pad),(pad,pad)], 'constant', constant_values=0)
+  for i in range(N):
+    for j in range(F):
+      for k in range(H_prime):
+        hs = k * stride
+        for l in range(W_prime):
+          ws = l * stride
+          window = padded[i,:,hs:hs+HH,ws:ws+WW]
+          out[i,j,k,l] = np.sum(window * w[j]) + b[j]
+
+          db[j] += dout[i,j,k,l]
+          dw[j] += window * dout[i,j,k,l]
+          padded_dx[i,:, hs:hs+HH, ws:ws+WW] += w[j] * dout[i,j,k,l]
+
+  #
+  dx = padded_dx[:,:,pad:pad+H,pad:pad+W]
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
