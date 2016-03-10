@@ -16,7 +16,12 @@ def random_flips(X):
   #############################################################################
   # TODO: Implement the random_flips function. Store the result in out.       #
   #############################################################################
-  pass
+  out = np.zeros_like(X)
+  mask = np.random.randint(2, size=X.shape[0])
+  out[mask == 1] = X[mask == 1,:,:,::-1]
+  out[mask == 0] = X[mask == 0]
+  #Vertical Flip
+  #X[mask == 1,:,::-1,:]
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
@@ -43,7 +48,14 @@ def random_crops(X, crop_shape):
   #############################################################################
   # TODO: Implement the random_crops function. Store the result in out.       #
   #############################################################################
-  pass
+  np.random.randint((H-HH), size=N)
+  y_start = np.random.randint((H-HH), size=N)
+  x_start = np.random.randint((W-WW), size=N)
+  y_end   = y_start + HH
+  x_end   = x_start + WW
+
+  for i in range(N):
+    out[i] = X[i,:, y_start[i]:y_end[i], x_start[i]:x_end[i]]
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
@@ -73,7 +85,8 @@ def random_contrast(X, scale=(0.8, 1.2)):
   #############################################################################
   # TODO: Implement the random_contrast function. Store the result in out.    #
   #############################################################################
-  pass
+  l = np.random.uniform(low=scale[0], high=scale[1], size=N).reshape(N,1,1,1)
+  out = l * X
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
@@ -103,7 +116,8 @@ def random_tint(X, scale=(-10, 10)):
   #############################################################################
   # TODO: Implement the random_tint function. Store the result in out.        #
   #############################################################################
-  pass
+  l = np.random.uniform(low=scale[0], high=scale[1], size=(N,C)).reshape(N,C,1,1)
+  out = l * X
   #############################################################################
   #                           END OF YOUR CODE                                #
   #############################################################################
