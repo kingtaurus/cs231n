@@ -240,7 +240,23 @@ def max_pool_forward_naive(x, pool_param):
   #############################################################################
   # TODO: Implement the max pooling forward pass                              #
   #############################################################################
-  pass
+  N, C, H, W = x.shape
+
+  pool_height = pool_param['pool_height']
+  pool_width  = pool_param['pool_width']   
+  stride      = pool_param['stride']
+
+  H_prime = 1 + (H - pool_height) // stride
+  W_prime = 1 + (W - pool_width) // stride
+
+  out = np.zeros((N,C, H_prime, W_prime))
+
+  for k in range(H_prime):
+    hs = k * stride
+    for l in range(W_prime):
+      ws = l * stride
+      window = x[:,:,hs:hs+pool_height, ws:ws+pool_width]
+      out[:,:,k,l] = np.max(window, axis=(2,3))
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -263,11 +279,49 @@ def max_pool_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the max pooling backward pass                             #
   #############################################################################
-  pass
+  x, pool_param = cache
+  N, C, H, W = x.shape
+
+  pool_height = pool_param['pool_height']
+  pool_width  = pool_param['pool_width']   
+  stride      = pool_param['stride']
+
+  H_prime = 1 + (H - pool_height) // stride
+  W_prime = 1 + (W - pool_width) // stride
+
+  dx = np.zeros_like(x)
+  for i in range(N):
+    for j in range(C):
+      for k in range(H_prime):
+        hs = k * stride
+        for l in range(W_prime):
+          ws = l * stride
+          window = x[i,j, hs:hs+pool_height, ws: ws+pool_width]
+          m = np.max(window)
+          dx[i,j, hs:hs+pool_height, ws:ws+pool_width] += (window==m) * dout[i,j,k,l]
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
   return dx
+
+  #ALTERNATE Attempt, not getting the broadcasting correct
+  # Current Issue is window[:,:] == m
+  # dx_1 = np.zeros_like(x)
+
+  # for k in range(H_prime):
+  #   hs = k * stride
+  #   for l in range(W_prime):
+  #     ws = l * stride
+  #     window = x[:,:,hs:hs+pool_height, ws:ws+pool_width]
+  #     m = np.max(window,axis=(2,3))
+  #     #need to corrctly check window for values in 'm'
+  #     print(np.where(window == m))
+  #     dx_1[:,:, hs:hs+pool_height, ws:ws+pool_width] += (window[:,:] == m) * dout[:,:,k,l].reshape((N,C,1,1))
+  #IDEA: Try to sample dout where window == m (i.e any of the samples)
+
+
+  # print("second set")
+
 
 
 def svm_loss(x, y):
