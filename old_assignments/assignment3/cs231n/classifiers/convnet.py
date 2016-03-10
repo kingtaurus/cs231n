@@ -44,7 +44,7 @@ def two_layer_convnet(X, model, y=None, reg=0.0, dropout=1.0):
   assert conv_filter_height == conv_filter_width, 'Conv filter must be square'
   assert conv_filter_height % 2 == 1, 'Conv filter height must be odd'
   assert conv_filter_width % 2 == 1, 'Conv filter width must be odd'
-  conv_param = {'stride': 1, 'pad': (conv_filter_height - 1) / 2}
+  conv_param = {'stride': 1, 'pad': (conv_filter_height - 1) // 2}
   pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
   dropout_param = {'p': dropout}
   dropout_param['mode'] = 'test' if y is None else 'train'
@@ -187,7 +187,7 @@ def three_layer_convnet(X, model, y=None, reg=0.0, dropout=None):
   W2, b2 = model['W2'], model['b2']
   W3, b3 = model['W3'], model['b3']
 
-  conv_param = {'stride': 1, 'pad': (W1.shape[2] - 1) / 2}
+  conv_param = {'stride': 1, 'pad': (W1.shape[2] - 1) // 2}
   pool_param = {'stride': 2, 'pool_height': 2, 'pool_width': 2}
   dropout_param = {'p': dropout}
   dropout_param['mode'] = 'test' if y is None else 'train'
@@ -347,9 +347,9 @@ def five_layer_convnet(X, model, y=None, reg=0.0, dropout=1.0,
   W4, b4 = model['W4'], model['b4']
   W5, b5 = model['W5'], model['b5']
 
-  conv_param_1 = {'stride': 1, 'pad': (W1.shape[2] - 1) / 2}
-  conv_param_2 = {'stride': 1, 'pad': (W2.shape[2] - 1) / 2}
-  conv_param_3 = {'stride': 1, 'pad': (W3.shape[2] - 1) / 2}
+  conv_param_1 = {'stride': 1, 'pad': (W1.shape[2] - 1) // 2}
+  conv_param_2 = {'stride': 1, 'pad': (W2.shape[2] - 1) // 2}
+  conv_param_3 = {'stride': 1, 'pad': (W3.shape[2] - 1) // 2}
   pool_param = {'stride': 2, 'pool_height': 2, 'pool_width': 2}
   dropout_param = {'p': dropout}
   dropout_param['mode'] = 'test' if y is None else 'train'

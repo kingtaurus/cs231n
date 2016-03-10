@@ -63,7 +63,7 @@ class ClassifierTrainer(object):
     N = X.shape[0]
 
     if sample_batches:
-      iterations_per_epoch = N / batch_size # using SGD
+      iterations_per_epoch = N // batch_size # using SGD
     else:
       iterations_per_epoch = 1 # using GD
     num_iters = num_epochs * iterations_per_epoch
@@ -139,7 +139,7 @@ class ClassifierTrainer(object):
         # Computing a forward pass with a batch size of 1000 will is no good,
         # so we batch it
         y_pred_train = []
-        for i in range(X_train_subset.shape[0] / 100):
+        for i in range(X_train_subset.shape[0] // 100):
           X_train_slice = X_train_subset[i*100:(i+1)*100]
           if predict_fn is not None:
             X_train_slice = predict_fn(X_train_slice)
@@ -151,7 +151,7 @@ class ClassifierTrainer(object):
 
         # evaluate val accuracy, but split the validation set into batches
         y_pred_val = []
-        for i in range(X_val.shape[0] / 100):
+        for i in range(X_val.shape[0] // 100):
           X_val_slice = X_val[i*100:(i+1)*100]
           if predict_fn is not None:
             X_val_slice = predict_fn(X_val_slice)
