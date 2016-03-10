@@ -138,10 +138,10 @@ def leaky_relu_forward(x, alpha):
   out_p = np.maximum(0, x)
 
   #this needs to broadcast
-  out_n = np.maximum(0, -a*x)
+  out_n = np.maximum(0, -alpha*x)
   out = out_p + out_n
 
-  cache = x, a
+  cache = x, alpha
   return out, cache
 
 
@@ -157,7 +157,7 @@ def leaky_relu_backward(dout, cache):
   - dx: Gradient with respect to x
   """
   dx = None
-  x, a = cache
+  x, alpha = cache
   #############################################################################
   # TODO: Implement the ReLU backward pass.                                   #
   #############################################################################
