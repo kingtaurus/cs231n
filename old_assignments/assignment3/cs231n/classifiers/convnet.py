@@ -364,6 +364,7 @@ def five_layer_convnet(X, model, y=None, reg=0.0, dropout=1.0,
     # TODO: Return features extracted from X.                                 #
     # HINT: This should be VERY simple!                                       #
     ###########################################################################
+    return a4.reshape((X.shape[0], model['b4'].shape[0]))
     ###########################################################################
     #                         END OF YOUR CODE                                #  
     ###########################################################################
@@ -385,13 +386,14 @@ def five_layer_convnet(X, model, y=None, reg=0.0, dropout=1.0,
   da3, dW4, db4 = affine_relu_backward(da4, cache4)
   da2, dW3, db3 = conv_relu_pool_backward(da3, cache3)
   da1, dW2, db2 = conv_relu_pool_backward(da2, cache2)
-  _, dW1, db1 = conv_relu_pool_backward(da1, cache1)
+  dX, dW1, db1 = conv_relu_pool_backward(da1, cache1)
 
   if compute_dX:
     ###########################################################################
     # TODO: Return the gradient of the loss with respect to the input.        #
     # HINT: This should be VERY simple!                                       #
     ###########################################################################
+    return dX
     ###########################################################################
     #                         END OF YOUR CODE                                #  
     ###########################################################################
