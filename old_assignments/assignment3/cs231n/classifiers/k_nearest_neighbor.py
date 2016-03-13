@@ -90,8 +90,10 @@ class KNearestNeighbor:
     dists = np.zeros((num_test, num_train)) 
     X_norms = np.sum(X ** 2, axis=1, keepdims=True)
     X_train_norms = np.sum(self.X_train ** 2, axis=1)
-    cross = -2.0 * X.dot(self.X_train.T)
-    dists = np.sqrt(X_norms + cross + X_train_norms)
+    cross = - 2.0 * X.dot(self.X_train.T)
+    # dists = X_norms + cross + X_train_norms
+    # dists[dists < 0] = 0.
+    dists = np.sqrt(cross)
     return dists
 
   def predict_labels(self, dists, k=1):
