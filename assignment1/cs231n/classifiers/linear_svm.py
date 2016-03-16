@@ -6,7 +6,7 @@ def svm_loss_naive(W, X, y, reg):
   Structured SVM loss function, naive implementation (with loops).
 
   Inputs have dimension D, there are C classes, and we operate on minibatches
-  of N examples.
+  of N examples. Assumes bias vector has been added to the X.
 
   Inputs:
   - W: A numpy array of shape (D, C) containing weights.
@@ -19,9 +19,6 @@ def svm_loss_naive(W, X, y, reg):
   - loss as single float
   - gradient with respect to weights W; an array of same shape as W
   """
-  if W.shape[0] - X.shape[1] == 1:
-    print("\nBias dimension probably has not been added to X!\n")
-
   if W.shape[0] != X.shape[1]:
     raise ValueError("Shape of the weight array (W) doesn't match shape of training data (X)!")
 
@@ -85,10 +82,9 @@ def svm_loss_vectorized(W, X, y, reg):
   """
   Structured SVM loss function, vectorized implementation.
 
-  Inputs and outputs are the same as svm_loss_naive.
+  Inputs and outputs are the same as svm_loss_naive. Assumes bias
+  vector has been added to the input.
   """
-  if W.shape[0] - X.shape[1] == 1:
-    print("Bias dimension has not been added to X!")
   if W.shape[0] != X.shape[1]:
     raise ValueError("Shape of the weight array (W) doesn't match shape of training data (X)!")
   if X.shape[0] != y.shape[0]:

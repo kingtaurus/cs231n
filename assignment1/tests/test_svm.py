@@ -1,9 +1,9 @@
 '''
 HOW TO RUN THIS CODE (if tests are within the assignment 1 root):
-python -m py.test test_k_nearest_neighbor.py -vv -s -q
-python -m py.test test_k_nearest_neighbor.py -vv -s -q --cov
+python -m py.test tests/test_svm.py -vv -s -q
+python -m py.test tests/test_svm.py -vv -s -q --cov
 
-py.test.exe --cov=cs231n/ test_k_nearest_neighbor.py --cov-report html
+py.test.exe --cov=cs231n/ test_svm.py --cov-report html
 
 (if the tests are within the subfolder tests)
 PYTHONPATH=${PWD} py.test.exe tests/ -v --cov-report html
@@ -18,10 +18,10 @@ import random
 
 from collections import defaultdict, OrderedDict, Counter
 
-from cs231n.classifiers.linear_classifier import LinearSVM
-from cs231n.classifiers.linear_svm        import svm_loss_naive, svm_loss_vectorized
+from cs231n.classifiers                   import Softmax
+from cs231n.classifiers.softmax           import softmax_loss_naive, softmax_loss_vectorized
 from cs231n.gradient_check                import grad_check_sparse, eval_numerical_gradient
-from cs231n.data_utils import load_CIFAR10, load_CIFAR_batch
+from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
 batch_id = random.choice(list(range(1,6)))
 
@@ -34,9 +34,6 @@ def test_assert():
 #TODO: reshaping the training/testing data sets should be handled
 #      within a different fixture (reasoning: want to test the
 #      the behaviour when the 'incorrect default shape is passed in')
-
-
-
 
 #fixtures used to construct data set
 @pytest.fixture(scope='module')
@@ -94,6 +91,39 @@ def sample_test(Xtest, ytest, count=1000):
         return Xtest[idx], ytest[idx]
     return make_sample
 
+@pytest.fixture(scope='function')
+def sample_train_with_bias(Xtrain, ytrain, count=3000):
+    Xtrain_copy = np.copy(Xtrain)
+
+    #Reshape the copy
+    Xtrain_copy = np.reshape(Xtrain_copy, (Xtrain_copy[0],-1))
+
+    #Add bias to the copy
+    Xtrain_copy = np.hstack([Xtrain_copy, np.ones((Xtrain_copy.shape[0], 1))])
+    def make_sample(count=count):
+        if count > ytrain.shape[0]:
+            count = random.uniform(50, ytrain.shape[0])
+        idx = np.random.choice(np.arange(len(ytrain)), count, replace=False)
+        return Xtrain_copy[idx], ytrain[idx]
+    return make_sample
+
+@pytest.fixture(scope='function')
+def sample_test_with_bias(Xtest, ytest, count=3000):
+    Xtest_copy = np.copy(Xtest)
+
+    #Reshape the copy
+    Xtest_copy = np.reshape(Xtest_copy, (Xtest_copy[0],-1))
+
+    #Add bias to the copy
+    Xtest_copy = np.hstack([Xtest_copy, np.ones((Xtest_copy.shape[0], 1))])
+    def make_sample(count=count):
+        if count > ytest.shape[0]:
+            count = random.uniform(50, ytest.shape[0])
+        idx = np.random.choice(np.arange(len(ytest)), count, replace=False)
+        return Xtest_copy[idx], ytest[idx]
+    return make_sample
+
+
 def test_Xtrain_shape(Xtrain):
     assert Xtrain[0].ndim == 3
     assert Xtrain.shape == (50000,32,32,3)
@@ -119,27 +149,60 @@ def test_sampling(sample_train):
     assert Xtrain.shape == (3500,32,32,3)
     assert ytrain.shape == (3500,)
 
-def test_SVM_loss_naive_no_bias(sample_train, sample_test):
+def test_SVM_loss_naive_no_bias_X(sample_train, sample_test):
     Xtrain, ytrain = sample_train(count=40)
     Xtest, ytest   = sample_test(count=20)
 
     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
 
-    W = np.random.randn(3073,10) * 0.0001
+    #i.e. using the correct W size
+    W = np.random.randn(Xtrain.shape[1] + 1,10) * 0.0001
     with pytest.raises(ValueError):
         loss, grad = svm_loss_naive(W, Xtrain, ytrain, 1e2)
     #this will fail because W is larger by 1
 
-def test_SVM_loss_vectorized_no_bias(sample_train, sample_test):
+def test_SVM_loss_vectorized_no_bias_X(sample_train, sample_test):
     Xtrain, ytrain = sample_train(count=40)
     Xtest, ytest   = sample_test(count=20)
 
     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
 
-    W = np.random.randn(3073,10) * 0.0001
+    W = np.random.randn(Xtrain.shape[1] + 1,10) * 0.0001
     with pytest.raises(ValueError):
         loss, grad = svm_loss_vectorized(W, Xtrain, ytrain, 1e2)
     #this will fail because W is larger by 1
+
+
+def test_SVM_loss_naive_no_bias_W(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    #using the incorrect W size
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+
+    #add the bias dimension
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        loss, grad = svm_loss_naive(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
+def test_SVM_loss_vectorized_no_bias_W(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    #using the incorrect W size
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+
+    #add the bias dimension (to X)
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        loss, grad = svm_loss_vectorized(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
 
 @pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
 def test_SVM_loss_naive_vectorized_comparison(sample_train, train_count):
@@ -186,7 +249,7 @@ def test_SVM_loss_vectorized_comparison_mean(sample_train, train_count, reg):
     assert np.linalg.norm(grad - grad_mean_removed) > 1.0
 
 
-@pytest.mark.parametrize("check_count", list(range(10,15)))
+@pytest.mark.parametrize("check_count", list(range(15,20)))
 def test_SVM_grad_vectorized_comparison_sparse(sample_train, check_count):
     Xtrain, ytrain = sample_train(count=500)
     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
@@ -209,8 +272,8 @@ def test_SVM_grad_vectorized_comparison_sparse(sample_train, check_count):
     for i in range(num_checks):
         ix = tuple([random.randrange(m) for m in W.shape])
         shift = np.zeros(W.shape)
-        shift[ix] = 1e-5
-        grad_numerical = (f(W + shift) - f(W - shift)) / (2 * 1e-5)
+        shift[ix] = 1e-7
+        grad_numerical = (f(W + shift) - f(W - shift)) / (2 * 1e-7)
         assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.01)
 #this needs to be reworked -> want to check that changing the regularization parameter
 #causes the loss and gradient to be different
@@ -275,251 +338,48 @@ def test_SVM_train_reshape_input(sample_train, sample_test):
     lin_svm = LinearSVM()
     lin_svm.train(Xtrain,ytrain)
 
-
-# @pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
-# @pytest.mark.parametrize("test_count", [10 * x + 1 for x in range(1,11)])
-# def test_SVM_predict_shape(sample_train, sample_test, train_count, test_count):
-#     Xtrain, ytrain = sample_train(train_count)
-#     Xtest, ytest   = sample_test(test_count)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     lin_svm = LinearSVM()
-#     lin_svm.train(Xtrain,ytrain)
-#     assert 1
-
-# @pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
-# @pytest.mark.parametrize("test_count", [10 * x + 1 for x in range(1,11)])
-# def test_SVM_weight_shape(sample_train, sample_test, train_count, test_count):
-#     assert 1
-
-# @pytest.mark.parametrize("train_count, test_count", [(10 * x + 1, 5 * x + 1) for x in range(1,10)])
-### if you have an equal number of values
-#@pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
-#@pytest.mark.parametrize("test_count", [10 * x + 1 for x in range(1,11)])
-# def test_KNN_dists_noloop_shape(sample_train, sample_test, train_count, test_count):
-#
-# This is nice because it tests over a bunch of values
-#
-# @pytest.mark.parametrize("in_count", [150 * x + 1 for x in range(1,10)])
-# def test_KNN_dists_noloop_shape(sample_train, sample_test, in_count):
-#     Xtrain, ytrain = sample_train(count=in_count)
-#     Xtest, ytest   = sample_test(count=in_count-30)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-#     assert knn.compute_distances_no_loops(Xtest).shape == (Xtest.shape[0], Xtrain.shape[0])
-
-# def test_KNN_dists_one_to_none(sample_train, sample_test):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest, ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-#     dist_one = knn.compute_distances_one_loop(Xtest)
-#     dist_no  = knn.compute_distances_no_loops(Xtest)
-#     assert np.linalg.norm(dist_one - dist_no, ord='fro') < 0.001
-
-# def test_KNN_predict_labels_shape(sample_train, sample_test):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest, ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     dist_no  = knn.compute_distances_no_loops(Xtest)
-#     assert knn.predict_labels(dist_no, k=1).shape == ytest.shape
-#     assert knn.predict_labels(dist_no, k=2).shape == ytest.shape
-#     assert knn.predict_labels(dist_no, k=3).shape == ytest.shape
-#     assert knn.predict_labels(dist_no, k=4).shape == ytest.shape
-
-# @pytest.mark.parametrize("k", list(range(-1,-10,-1)))
-# def test_KNN_predict_k_outofrange_parameter(sample_train, sample_test, k):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest,  ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     with pytest.raises(ValueError):
-#         knn.predict(Xtest,k)
-
-# @pytest.mark.parametrize("k", list(range(1,3)))
-# def test_KNN_predict_k_parameter(sample_train, sample_test, k):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest,  ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     assert knn.predict(Xtest,k).shape == ytest.shape
-
-# @pytest.mark.parametrize("num_loops", list(range(-1,-10,-1)) + list(range(3,10,1)))
-# def test_KNN_predict_num_loop_parameter(sample_train, sample_test, num_loops):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest,  ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     with pytest.raises(ValueError):
-#         knn.predict(Xtest,0,num_loops).shape
-
-# @pytest.mark.parametrize("num_loops", list(range(0,3)))
-# @pytest.mark.parametrize("k", [1])
-# def test_KNN_predict_loop_parameter(sample_train, sample_test, k, num_loops):
-#     Xtrain, ytrain = sample_train(count=40)
-#     Xtest,  ytest   = sample_test(count=10)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     assert knn.predict(Xtest,k,num_loops).shape == ytest.shape
-
-# def test_KNN_predict_incorrect_shape(sample_train, sample_test):
-#     Xtrain, ytrain = sample_train(count=500)
-#     Xtest, ytest   = sample_test(count=125)
-
-#     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
-#     Xtest = np.reshape(Xtest, (Xtest.shape[0], -1))
-
-#     knn = KNearestNeighbor()
-#     knn.train(Xtrain,ytrain)
-
-#     with pytest.raises(ValueError):
-#         knn.predict(ytrain)#using ytrain, shich has incorrect dimensions;
-
-#options are 'module', 'fixture', 'session'
-### Extra Test Code: ###
-@pytest.fixture(scope='module')
-def inlists():
-    import random
-    sample_list = []
-    possible_multiple = []
-    for i in range(0,100):
-        sample_list.append(random.sample(range(0,10),5))
-        possible_multiple.append(sample_list[i])
-
-    for i in range(0,100):
-        possible_multiple.append([random.choice(range(0,5)) for j in range(0,4)])
-
-    return sample_list, possible_multiple
-
-# def list_to_tests():
-#     import random
-#     for i in range(0,20):
-#         print(random.sample(range(0, 10), 4))
-#         #generates a set of 4 unique random samples from [0,10)
-#         print([random.choice(range(0,5)) for j in range(0,4)])
-#         #non-unique samples
-
-
-
-
-## Use list_to_tests to generate test cases
-## (1) should be able to use list operations to check numpy behaviour
-##     (i.e. Counter, OrderedDict, etc. to check argmax, argsort, argwhere)
-## (2)
-def argmax(lst):
-    return list.index(max(lst))
-
-def argmax_alt(iterable):
-    return max(enumerate(iterable), key=lambda x: x[1])[0]
-
-def counter_t(iterable):
-    return Counter(iterable)
-
-def argwhere(lst, value):
-    return [i for i,x in enumerate(lst) if x == value]
-
-def argwhere_alt(lst, element):
-    result = []
-    offset = -1
-    while True:
-        try:
-            offset = lst.index(element, offset+1)
-        except ValueError:
-            return result
-        result.append(offset)
-
-def argsort_1(seq):
-    # http://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python/3383106#3383106
-    #non-lambda version by Tony Veijalainen
-    return [i for (v, i) in sorted((v, i) for (i, v) in enumerate(seq))]
-
-def argsort_2(seq):
-    # http://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python/3383106#3383106
-    #lambda version by Tony Veijalainen
-    return [x for x,y in sorted(enumerate(seq), key = lambda x: x[1])]
-
-def argsort_3(seq):
-    #http://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python/3382369#3382369
-    #by unutbu
-    return sorted(range(len(seq)), key=seq.__getitem__)
-
-
-###
-# # How to handle multiple parameterizations of tests
-###
-
-# testdata_1 = [ x * 10 for x in range(1,10)]
-# testdata_2 = [ x * 10 for x in range(1,15)]
-
-# @pytest.mark.parametrize("a", testdata_1)
-# def test_a(a):
-#     assert a > 5
-
-# @pytest.mark.parametrize("a", testdata_1)
-# @pytest.mark.parametrize("b", testdata_2)
-# def test_ab(a,b):
-#     assert a > 5
-#     assert b < 150
-
-
-#requires -s to be passed
-@pytest.fixture(params=["mysql","pg"],scope='function')
-def db(request):
-    def fin():
-        print(" teardown")
-    request.addfinalizer(fin)
-    return request.param
-
-#requires
-def test_db(db):
-    assert len(db) > 1
-
-
-
-
-
-
-
-
-
-
-
+def test_SVM_random_weights(sample_train, weight_size=0.0001, regularization=1.0):
+    Xtrain, ytrain = sample_train()
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    W = np.random.randn(3073,10) * weight_size
+    loss, grad = svm_loss_naive(W, Xtrain, ytrain, regularization)
+    assert loss > 8.5
+
+def test_LinearSVM_train_no_reshape(sample_train, num_iters=200,
+                         learning_rate=1e-7, regularization=5e3):
+    Xtrain, ytrain = sample_train()
+
+    svm = LinearSVM()
+    #raises a value error because Xtrain is not of the correct input shape
+    # (num_train, num_features)
+    with pytest.raises(ValueError):
+        loss_hist = svm.train(Xtrain, ytrain, learning_rate=learning_rate,
+                              reg=regularization, num_iters=num_iters, verbose=False)
+
+
+def test_LinearSVM_train(sample_train, num_iters=200,
+                         learning_rate=1e-7, regularization=5e3):
+    Xtrain, ytrain = sample_train()
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    svm = LinearSVM()
+    loss_hist = svm.train(Xtrain, ytrain, learning_rate=learning_rate,
+                          reg=regularization, num_iters=num_iters, verbose=False)
+    assert len(loss_hist) == num_iters
+
+def test_LinearSVM_train(sample_train, num_iters=200,
+                         learning_rate=1e-7, regularization=5e3):
+    Xtrain, ytrain = sample_train()
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    svm = LinearSVM()
+    loss_hist = svm.train(Xtrain, ytrain, learning_rate=learning_rate,
+                          reg=regularization, num_iters=num_iters, verbose=False)
+    assert loss_hist[-1] < loss_hist[0]
 
 
 

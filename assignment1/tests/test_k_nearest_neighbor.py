@@ -402,7 +402,7 @@ def argsort_3(seq):
 
 
 #requires -s to be passed
-@pytest.fixture(params=["mysql","pg"],scope='function')
+@pytest.fixture(params=["mysql","pg"], scope='function')
 def db(request):
     def fin():
         print(" teardown")

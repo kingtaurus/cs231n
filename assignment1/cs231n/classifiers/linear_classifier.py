@@ -155,6 +155,6 @@ def softmax_score(W,X,y):
   f -= np.max(f,axis=0)
 
   f_correct = f[y, np.arange(num_train)]
-  print(f_correct)
+  #print(f_correct)
   return np.log( np.exp(f_correct) / np.sum(np.exp(f), axis=0))
 
