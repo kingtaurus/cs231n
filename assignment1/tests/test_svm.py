@@ -18,8 +18,8 @@ import random
 
 from collections import defaultdict, OrderedDict, Counter
 
-from cs231n.classifiers                   import Softmax
-from cs231n.classifiers.softmax           import softmax_loss_naive, softmax_loss_vectorized
+from cs231n.classifiers.linear_classifier import LinearSVM
+from cs231n.classifiers.linear_svm        import svm_loss_naive, svm_loss_vectorized
 from cs231n.gradient_check                import grad_check_sparse, eval_numerical_gradient
 from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
@@ -122,7 +122,6 @@ def sample_test_with_bias(Xtest, ytest, count=3000):
         idx = np.random.choice(np.arange(len(ytest)), count, replace=False)
         return Xtest_copy[idx], ytest[idx]
     return make_sample
-
 
 def test_Xtrain_shape(Xtrain):
     assert Xtrain[0].ndim == 3

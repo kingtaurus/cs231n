@@ -19,8 +19,8 @@ import random
 
 from collections import defaultdict, OrderedDict, Counter
 
-from cs231n.classifiers.linear_classifier import LinearSVM
-from cs231n.classifiers.linear_svm        import svm_loss_naive, svm_loss_vectorized
+from cs231n.classifiers                   import Softmax
+from cs231n.classifiers.softmax           import softmax_loss_naive, softmax_loss_vectorized
 from cs231n.gradient_check                import grad_check_sparse, eval_numerical_gradient
 from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
@@ -161,3 +161,60 @@ def test_sampling_with_bias(sample_train, sample_train_with_bias, count=3500):
 
 	#assert that the dimensions
 	assert (np.prod(Xtrain.shape) / Xtrain.shape[0]) == (1 + np.prod(Xtrain_no_bias.shape)/Xtrain_no_bias.shape[0])
+
+
+def test_softmax_loss_naive_no_bias_X(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+
+    #i.e. using the correct W size
+    W = np.random.randn(Xtrain.shape[1] + 1,10) * 0.0001
+    with pytest.raises(ValueError):
+        loss, grad = softmax_loss_naive(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
+def test_softmax_loss_vectorized_no_bias_X(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+
+    W = np.random.randn(Xtrain.shape[1] + 1,10) * 0.0001
+    with pytest.raises(ValueError):
+        loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
+
+def test_softmax_loss_naive_no_bias_W(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    #using the incorrect W size
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+
+    #add the bias dimension
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        loss, grad = softmax_loss_naive(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
+def test_softmax_loss_vectorized_no_bias_W(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=20)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    #using the incorrect W size
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+
+    #add the bias dimension (to X)
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, 1e2)
+    #this will fail because W is larger by 1
+
+
