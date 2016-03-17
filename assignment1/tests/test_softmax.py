@@ -94,35 +94,31 @@ def sample_test(Xtest, ytest, count=1000):
 
 @pytest.fixture(scope='function')
 def sample_train_with_bias(Xtrain, ytrain, count=3000):
-	Xtrain_copy = np.copy(Xtrain)
+    #Reshape the copy
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0],-1))
 
-	#Reshape the copy
-	Xtrain_copy = np.reshape(Xtrain_copy, (Xtrain_copy.shape[0],-1))
-
-	#Add bias to the copy
-	Xtrain_copy = np.hstack([Xtrain_copy, np.ones((Xtrain_copy.shape[0], 1))])
-	def make_sample(count=count):
-		if count > ytrain.shape[0]:
-			count = random.uniform(50, ytrain.shape[0])
-		idx = np.random.choice(np.arange(len(ytrain)), count, replace=False)
-		return Xtrain_copy[idx], ytrain[idx]
-	return make_sample
+    #Add bias to the copy
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+    def make_sample(count=count):
+        if count > ytrain.shape[0]:
+            count = random.uniform(50, ytrain.shape[0])
+        idx = np.random.choice(np.arange(len(ytrain)), count, replace=False)
+        return Xtrain[idx], ytrain[idx]
+    return make_sample
 
 @pytest.fixture(scope='function')
 def sample_test_with_bias(Xtest, ytest, count=3000):
-	Xtest_copy = np.copy(Xtest)
+    #Reshape the copy
+    Xtest = np.reshape(Xtest, (Xtest.shape[0],-1))
 
-	#Reshape the copy
-	Xtest_copy = np.reshape(Xtest_copy, (Xtest_copy.shape[0],-1))
-
-	#Add bias to the copy
-	Xtest_copy = np.hstack([Xtest_copy, np.ones((Xtest_copy.shape[0], 1))])
-	def make_sample(count=count):
-		if count > ytest.shape[0]:
-			count = random.uniform(50, ytest.shape[0])
-		idx = np.random.choice(np.arange(len(ytest)), count, replace=False)
-		return Xtest_copy[idx], ytest[idx]
-	return make_sample
+    #Add bias to the copy
+    Xtest = np.hstack([Xtest, np.ones((Xtest.shape[0], 1))])
+    def make_sample(count=count):
+        if count > ytest.shape[0]:
+            count = random.uniform(50, ytest.shape[0])
+        idx = np.random.choice(np.arange(len(ytest)), count, replace=False)
+        return Xtest[idx], ytest[idx]
+    return make_sample
 
 def test_Xtrain_shape(Xtrain):
     assert Xtrain[0].ndim == 3
@@ -150,17 +146,17 @@ def test_sampling(sample_train):
     assert ytrain.shape == (3500,)
 
 def test_sampling_with_bias(sample_train, sample_train_with_bias, count=3500):
-	Xtrain_no_bias, y_train_no_bias = sample_train(count=count)
-	Xtrain, ytrain = sample_train_with_bias(count=count)
-	assert Xtrain_no_bias.shape == (count,32,32,3)
-	assert y_train_no_bias.shape == (count,)
+    Xtrain_no_bias, y_train_no_bias = sample_train(count=count)
+    Xtrain, ytrain = sample_train_with_bias(count=count)
+    assert Xtrain_no_bias.shape == (count,32,32,3)
+    assert y_train_no_bias.shape == (count,)
 
-	assert Xtrain.shape[0] == Xtrain_no_bias.shape[0]
+    assert Xtrain.shape[0] == Xtrain_no_bias.shape[0]
 
-	assert np.prod(Xtrain.shape) > np.prod(Xtrain_no_bias.shape)
+    assert np.prod(Xtrain.shape) > np.prod(Xtrain_no_bias.shape)
 
-	#assert that the dimensions
-	assert (np.prod(Xtrain.shape) / Xtrain.shape[0]) == (1 + np.prod(Xtrain_no_bias.shape)/Xtrain_no_bias.shape[0])
+    #assert that the dimensions
+    assert (np.prod(Xtrain.shape) / Xtrain.shape[0]) == (1 + np.prod(Xtrain_no_bias.shape)/Xtrain_no_bias.shape[0])
 
 
 def test_softmax_loss_naive_no_bias_X(sample_train, sample_test):
@@ -218,3 +214,133 @@ def test_softmax_loss_vectorized_no_bias_W(sample_train, sample_test):
     #this will fail because W is larger by 1
 
 
+@pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
+def test_softmax_loss_naive_vectorized_comparison(sample_train_with_bias, train_count):
+    Xtrain, ytrain = sample_train_with_bias(count=train_count)
+
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+    loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, 1e2)
+    loss_naive, grad_naive = softmax_loss_naive(W, Xtrain, ytrain, 1e2)
+    assert np.abs(loss - loss_naive) < 0.0001
+    assert np.linalg.norm(grad - grad_naive) < 0.0001
+
+@pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
+@pytest.mark.parametrize("reg", [10. * x + 1 for x in range(10,100000, 10000)])
+def test_softmax_loss_naive_vectorized_comparison_reg(sample_train, train_count, reg):
+    Xtrain, ytrain = sample_train(count=train_count)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+    loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, reg)
+    loss_naive, grad_naive = softmax_loss_naive(W, Xtrain, ytrain, reg)
+    assert np.abs(loss - loss_naive) < 0.0001
+    assert np.linalg.norm(grad - grad_naive) < 0.0001
+
+@pytest.mark.parametrize("train_count", [10 * x + 1 for x in range(1,10)])
+@pytest.mark.parametrize("reg", [10. * x + 1 for x in range(10,100000, 10000)])
+def test_softmax_loss_vectorized_comparison_mean(sample_train, train_count, reg):
+    Xtrain, ytrain = sample_train(count=train_count)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+
+    mean_image = np.mean(Xtrain, axis=0)
+    Xtrain_mean_removed = Xtrain - mean_image
+
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+    Xtrain_mean_removed = np.hstack([Xtrain_mean_removed, np.ones((Xtrain_mean_removed.shape[0], 1))])
+
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+    loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, reg)
+    loss_mean_removed, grad_mean_removed = softmax_loss_vectorized(W, Xtrain_mean_removed, ytrain, reg)
+    #assert np.abs(loss - loss_mean_removed) > 0.01
+    assert np.linalg.norm(grad - grad_mean_removed) > 1.0
+
+@pytest.mark.parametrize("train_count", [50,100,200,500,1000,2000])
+def test_softmax_loss_vectorized_numerical_check(sample_train, train_count, reg=0.0, check_count=20):
+    Xtrain, ytrain = sample_train(count=train_count)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    mean_image = np.mean(Xtrain, axis=0)
+    Xtrain -= mean_image
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+    loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, 0.)
+
+    f = lambda w: softmax_loss_vectorized(w, Xtrain, ytrain, 0.0)[0]
+    g = lambda w: softmax_loss_vectorized(w, Xtrain, ytrain, 0.0)[1]
+    #(f(W+vec(h)) - f(W-vec(h)))/2/|vec(h)| = approximately dot(f'(W),vec(h)) * vec(h)
+    #grad(loss) = grad vectorized
+
+    num_checks = check_count
+    grad_analytic = g(W)
+    for i in range(num_checks):
+        ix = tuple([random.randrange(m) for m in W.shape])
+        shift = np.zeros(W.shape)
+        shift[ix] = 1e-7
+        grad_numerical = (f(W + shift) - f(W - shift)) / (2 * 1e-7)
+        assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.01)
+
+def test_softmax_train(sample_train, sample_test):
+    #this test is designed to verify that input shapes are correct
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=10)
+
+    with pytest.raises(ValueError):
+        #Xtrain has the wrong shape (that is why there is a value error)
+        softmax = Softmax()
+        softmax.train(Xtrain, ytrain)
+
+def test_softmax_train_1(sample_train, sample_test):
+    #this test is designed to verify that input shapes are correct
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=10)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        softmax = Softmax()
+        softmax.train(Xtrain, Xtrain)
+
+def test_softmax_train_2(sample_train, sample_test):
+    #this test is designed to verify that input shapes are correct
+    Xtrain, ytrain = sample_train(count=40)
+    Xtest, ytest   = sample_test(count=10)
+
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    with pytest.raises(ValueError):
+        #this will catcha Valueerror associated with bad unpacking of a tuple
+        softmax = Softmax()
+        softmax.train(ytrain, ytrain)
+
+def test_softmax_train_reshape_input(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=300)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    softmax = Softmax()
+    loss = softmax.train(Xtrain, ytrain, reg=0, learning_rate=1e-6)
+    assert loss[0] > loss[-1]
+
+def test_softmax_train_reshape_input(sample_train, sample_test):
+    Xtrain, ytrain = sample_train(count=4000)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    softmax = Softmax()
+    loss = softmax.train(Xtrain, ytrain, reg=0, learning_rate=1e-6, num_iters=2000)
+    assert loss[0] > loss[-1]
+    assert loss[-1] / loss[0] < 0.15
+
+def test_softmax_random_weights(sample_train, weight_size=0.0001, regularization=1.0):
+    Xtrain, ytrain = sample_train(count=7000)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    W = np.random.randn(3073,10) * weight_size
+    loss, grad = softmax_loss_naive(W, Xtrain, ytrain, regularization)
+    assert loss > 1.8 and loss < 2.8
+    #expect a loss of  loss ~ -np.log(0.1)
+    # i.e. we get it right 1/10 times

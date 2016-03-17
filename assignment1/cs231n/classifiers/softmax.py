@@ -29,6 +29,13 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
+  if W.ndim != 2:
+    raise ValueError("Require W to have X.ndim = 2;")
+  if X.ndim != 2:
+    raise ValueError("Require X to have X.ndim = 2;")
+  if y.ndim != 1:
+    raise ValueError("True class labels (y) should be input as a vector.")
+
   num_classes = W.shape[1]
   num_train   = X.shape[0]
 
@@ -74,6 +81,13 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
+  if W.ndim != 2:
+    raise ValueError("Require W to have X.ndim = 2;")
+  if X.ndim != 2:
+    raise ValueError("Require X to have X.ndim = 2;")
+  if y.ndim != 1:
+    raise ValueError("True class labels (y) should be input as a vector.")
+
   num_classes = W.shape[1]
   num_train   = X.shape[0]
 

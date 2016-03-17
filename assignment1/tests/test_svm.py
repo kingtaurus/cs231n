@@ -301,6 +301,7 @@ def test_SVM_train(sample_train, sample_test):
     Xtest, ytest   = sample_test(count=10)
 
     with pytest.raises(ValueError):
+        #Xtrain has the wrong shape (that is why there is a value error)
         lin_svm = LinearSVM()
         lin_svm.train(Xtrain, ytrain)
 
@@ -323,7 +324,7 @@ def test_SVM_train_2(sample_train, sample_test):
     Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
 
     with pytest.raises(ValueError):
-        #this will catcha Valueerror associated with bad unpacking of a tuple
+        #this will catcha ValueError associated with bad unpacking of a tuple
         lin_svm = LinearSVM()
         lin_svm.train(ytrain, ytrain)
 
