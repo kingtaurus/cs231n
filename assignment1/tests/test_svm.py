@@ -247,7 +247,6 @@ def test_SVM_loss_vectorized_comparison_mean(sample_train, train_count, reg):
     #assert np.abs(loss - loss_mean_removed) > 0.01
     assert np.linalg.norm(grad - grad_mean_removed) > 1.0
 
-
 @pytest.mark.parametrize("check_count", list(range(15,20)))
 def test_SVM_grad_vectorized_comparison_sparse(sample_train, check_count):
     Xtrain, ytrain = sample_train(count=500)
@@ -273,7 +272,7 @@ def test_SVM_grad_vectorized_comparison_sparse(sample_train, check_count):
         shift = np.zeros(W.shape)
         shift[ix] = 1e-7
         grad_numerical = (f(W + shift) - f(W - shift)) / (2 * 1e-7)
-        assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.01)
+        assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.0001)
 #this needs to be reworked -> want to check that changing the regularization parameter
 #causes the loss and gradient to be different
 # @pytest.mark.parametrize("reg", [10. * x + 1 for x in range(10,100000, 10000)])

@@ -26,6 +26,10 @@ from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
 batch_id = random.choice(list(range(1,6)))
 
+def rel_error(x,y):
+    """ returns relative error """
+    return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
+
 def test_assert():
     assert 1
 
@@ -255,6 +259,25 @@ def test_softmax_loss_vectorized_comparison_mean(sample_train, train_count, reg)
     #assert np.abs(loss - loss_mean_removed) > 0.01
     assert np.linalg.norm(grad - grad_mean_removed) > 1.0
 
+@pytest.mark.parametrize("train_count", [50])
+def test_softmax_loss_vectorized_numerical_gradient(sample_train, train_count, reg=0.0):
+    Xtrain, ytrain = sample_train(count=train_count)
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0], -1))
+    mean_image = np.mean(Xtrain, axis=0)
+    Xtrain -= mean_image
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
+
+    W = np.random.randn(Xtrain.shape[1],10) * 0.0001
+    loss, grad = softmax_loss_vectorized(W, Xtrain, ytrain, 0.)
+
+    f = lambda w: softmax_loss_vectorized(w, Xtrain, ytrain, reg)[0]
+    g = lambda w: softmax_loss_vectorized(w, Xtrain, ytrain, reg)[1]
+
+    grad_analytic = g(W)
+    param_grad_num = eval_numerical_gradient(f, W, verbose=False, h=1e-7)
+    assert rel_error(param_grad_num, grad_analytic) < 1e-4
+
+
 @pytest.mark.parametrize("train_count", [50,100,200,500,1000,2000])
 def test_softmax_loss_vectorized_numerical_check(sample_train, train_count, reg=0.0, check_count=20):
     Xtrain, ytrain = sample_train(count=train_count)
@@ -278,7 +301,7 @@ def test_softmax_loss_vectorized_numerical_check(sample_train, train_count, reg=
         shift = np.zeros(W.shape)
         shift[ix] = 1e-7
         grad_numerical = (f(W + shift) - f(W - shift)) / (2 * 1e-7)
-        assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.01)
+        assert( abs(grad_numerical - grad_analytic[ix]) / (abs(grad_numerical) + abs(grad_analytic[ix])) < 0.0001)
 
 def test_softmax_train(sample_train, sample_test):
     #this test is designed to verify that input shapes are correct
