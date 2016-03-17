@@ -22,10 +22,12 @@ from collections                          import defaultdict, OrderedDict, Count
 from cs231n.gradient_check                import grad_check_sparse, eval_numerical_gradient, eval_numerical_gradient_array
 from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
-from cs231n.layers import affine_forward, affine_backward, relu_forward, relu_backward
-from cs231n.layers import softmax_loss, svm_loss
-from cs231n.layer_utils import affine_relu_forward, affine_relu_backward
+from cs231n.layers             import affine_forward, affine_backward, relu_forward, relu_backward
+from cs231n.layers             import softmax_loss, svm_loss
+from cs231n.layer_utils        import affine_relu_forward, affine_relu_backward
 from cs231n.classifiers.fc_net import TwoLayerNet, FullyConnectedNet
+
+from cs231n.solver import solver
 
 batch_id = random.choice(list(range(1,6)))
 
