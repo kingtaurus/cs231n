@@ -3,7 +3,7 @@ HOW TO RUN THIS CODE (if tests are within the assignment 1 root):
 python -m py.test tests/test_features.py -vv -s -q
 python -m py.test tests/test_features.py -vv -s -q --cov
 
-py.test.exe --cov=cs231n/ test_features.py --cov-report html
+py.test.exe --cov=cs231n/ tests/test_features.py --cov-report html
 
 (if the tests are within the subfolder tests)
 PYTHONPATH=${PWD} py.test.exe tests/ -v --cov-report html
@@ -11,6 +11,7 @@ python -m pytest tests -v --cov-report html
 
 Open index.html contained within htmlcov
 '''
+
 
 import pytest
 import numpy as np
@@ -20,15 +21,21 @@ from collections import defaultdict, OrderedDict, Counter
 
 from cs231n.classifiers.linear_classifier import LinearSVM
 from cs231n.classifiers.linear_svm        import svm_loss_naive, svm_loss_vectorized
+from cs231n.classifiers                   import Softmax
+from cs231n.classifiers.softmax           import softmax_loss_naive, softmax_loss_vectorized
+
+from cs231n.classifiers.neural_net        import TwoLayerNet
 from cs231n.gradient_check                import grad_check_sparse, eval_numerical_gradient
 from cs231n.data_utils                    import load_CIFAR10, load_CIFAR_batch
 
 batch_id = random.choice(list(range(1,6)))
 
+def rel_error(x,y):
+    """ returns relative error """
+    return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
+
 def test_assert():
     assert 1
-
-
 
 @pytest.fixture(scope='module')
 def Xtrain():
@@ -87,34 +94,30 @@ def sample_test(Xtest, ytest, count=1000):
 
 @pytest.fixture(scope='function')
 def sample_train_with_bias(Xtrain, ytrain, count=3000):
-    Xtrain_copy = np.copy(Xtrain)
-
     #Reshape the copy
-    Xtrain_copy = np.reshape(Xtrain_copy, (Xtrain_copy[0],-1))
+    Xtrain = np.reshape(Xtrain, (Xtrain.shape[0],-1))
 
     #Add bias to the copy
-    Xtrain_copy = np.hstack([Xtrain_copy, np.ones((Xtrain_copy.shape[0], 1))])
+    Xtrain = np.hstack([Xtrain, np.ones((Xtrain.shape[0], 1))])
     def make_sample(count=count):
         if count > ytrain.shape[0]:
             count = random.uniform(50, ytrain.shape[0])
         idx = np.random.choice(np.arange(len(ytrain)), count, replace=False)
-        return Xtrain_copy[idx], ytrain[idx]
+        return Xtrain[idx], ytrain[idx]
     return make_sample
 
 @pytest.fixture(scope='function')
 def sample_test_with_bias(Xtest, ytest, count=3000):
-    Xtest_copy = np.copy(Xtest)
-
     #Reshape the copy
-    Xtest_copy = np.reshape(Xtest_copy, (Xtest_copy[0],-1))
+    Xtest = np.reshape(Xtest, (Xtest.shape[0],-1))
 
     #Add bias to the copy
-    Xtest_copy = np.hstack([Xtest_copy, np.ones((Xtest_copy.shape[0], 1))])
+    Xtest = np.hstack([Xtest, np.ones((Xtest.shape[0], 1))])
     def make_sample(count=count):
         if count > ytest.shape[0]:
             count = random.uniform(50, ytest.shape[0])
         idx = np.random.choice(np.arange(len(ytest)), count, replace=False)
-        return Xtest_copy[idx], ytest[idx]
+        return Xtest[idx], ytest[idx]
     return make_sample
 
 def test_Xtrain_shape(Xtrain):
