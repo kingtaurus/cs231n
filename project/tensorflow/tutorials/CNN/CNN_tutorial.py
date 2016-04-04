@@ -62,14 +62,14 @@ b_conv2 = bias_variable([64])
 h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 h_pool2 = max_pool_2x2(h_conv2)
 
-W_conv3 = weight_variable([3,3,64,128])
-b_conv3 = bias_variable([128])
+W_conv3 = weight_variable([3,3,64,64])
+b_conv3 = bias_variable([64])
 
 h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
-h_conv3_flat = tf.reshape(h_conv3, [-1, 7*7*128])
+h_conv3_flat = tf.reshape(h_conv3, [-1, 7*7*64])
 #downsampled
 
-W_fc1 = weight_variable([7*7*128,512])
+W_fc1 = weight_variable([7*7*64,512])
 b_fc1 = weight_variable([512])
 
 h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
@@ -111,7 +111,7 @@ writer = tf.train.SummaryWriter("MNIST_test_summary", sess.graph_def)
 sess.run(tf.initialize_all_variables())
 
 for i in range(10000):
-	batch = mnist.train.next_batch(200)
+	batch = mnist.train.next_batch(50)
 	if i % 100 == 0:
 		#get a new validation batch
 		validation_batch = mnist.validation.next_batch(500)
