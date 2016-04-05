@@ -149,6 +149,7 @@ def test_sampling(sample_train):
     assert Xtrain.shape == (3500, IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS)
     assert ytrain.shape == (3500,)
 
+
 def fake_data(num_images, num_labels=10):
     """ Generate a fake dataset that matches the dimensions of CIFAR10."""
     data = np.ndarray(
@@ -157,11 +158,30 @@ def fake_data(num_images, num_labels=10):
     labels = np.zeros(shape=(num_images,), dtype=np.int64)
     for image in range(num_images):
         label = image % num_labels
-        #data[image, :, :, 0] = label - 0.5
-        #ABOVE sets all values in channel 0 to be -0.5 or 0.5
+        data[image, :, :, 0] = label - 0.5
+        #ABOVE sets all values in channel 0 to be -0.5, 0.5, .., num_label -0.5
         labels[image] = label
         #binary label
     return data, labels
+
+def fake_data_random(num_images, num_labels=10):
+    """ Generate a fake dataset that matches the dimensions of CIFAR10."""
+    data = np.random.normal( loc=130., scale=20.,
+                             size=(num_images, IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
+    labels = np.zeros(shape=(num_images,), dtype=np.int64)
+    for image in range(num_images):
+        label = image % num_labels
+        data[image] *= 1 - label / num_labels * (np.random.randint(3) - 1)
+        labels[image] = label
+        #binary label
+    return data, labels
+
+
+def test_fake_data():
+    data_1, labels_2 = fake_data(256)
+    data_2, labels_2 = fake_data_random(256)
+    assert data_1.shape == data_2.shape
+    assert np.mean(data_1) < np.mean(data_2)
 
 def test_affine_forward():
     num_inputs = 2
