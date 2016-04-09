@@ -126,6 +126,9 @@ x_gen            = tf.nn.relu(tf.matmul(h_flat_decoder1, W_decoder_1_to_2) + b_d
 
 x_gen_image = tf.reshape(x_gen, shape=[-1, 28, 28, 1])
 
+input_image   = tf.image_summary("input image", x_image, max_images=2)
+encoded_image = tf.image_summary("autoencoder image", x_gen_image, max_images=2)
+
 loss = tf.reduce_mean(tf.square(x - x_gen), name="l2_loss")
 
 summary_loss = tf.scalar_summary(loss.op.name, loss)
@@ -150,6 +153,9 @@ chunk_size = 1000
 batch_Xtest_list = [mnist.test.images[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 batch_ytest_list = [mnist.test.labels[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 
+print("Done splitting up test data set;")
+print("Starting training loop.")
+
 #train for 10 epochs 55000 * 10 / 100 
 for i in range(5500):
 	if i % 550 == 0:
@@ -172,9 +178,16 @@ for i in range(5500):
 		# plt.savefig('foo.png', bbox_inches='tight')
 	train_step.run(session=sess, feed_dict={x:batch[0], y_: batch[1]})
 
-numpy_Wc1 =  W_conv1.eval(sess)
+#numpy_Wc1 =  W_conv1.eval(sess)
+
+loss_estimate = 0.
+for i in range(len(batch_Xtest_list)):
+	loss_estimate += loss.eval(session=sess, feed_dict={x:batch_Xtest_list[i], y_: batch_ytest_list[i]})
+print("final loss %g" % (loss_estimate/len(batch_Xtest_list)))
+print("run time = %d" % (time.time() - start))
+
 with open('Wc1.pkl','wb') as f:
-	pickle.dump(numpy_Wc1, f)
+	pickle.dump(W_conv1.eval(sess), f)
 
 with open('W_conv2.pkl','wb') as f:
 	pickle.dump(W_conv2.eval(sess), f)
@@ -190,13 +203,5 @@ with open('W_latent_to_decoder.pkl', 'wb') as f:
 
 with open('W_decoder_1_to_2.pkl', 'wb') as f:
 	pickle.dump(W_decoder_1_to_2.eval(sess), f)
-
-
-
-loss_estimate = 0.
-for i in range(len(batch_Xtest_list)):
-	loss_estimate += loss.eval(session=sess, feed_dict={x:batch_Xtest_list[i], y_: batch_ytest_list[i]})
-print("final loss %g" % (loss_estimate))
-print("run time = %d" % (time.time() - start))
 
 print("Done!")
