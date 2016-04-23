@@ -135,7 +135,7 @@ train_step   = tf.train.AdamOptimizer(1e-4).minimize(loss)
 #encoded_image = tf.image_summary("Validation Batch (autoencoder image)", x_gen_image, max_images=3)
 
 merged = tf.merge_all_summaries()
-writer = tf.train.SummaryWriter("MNIST_CNN_autoencoder", sess.graph_def)
+writer = tf.train.SummaryWriter("MNIST_CNN_autoencoder", sess.graph)
 
 sess.run(tf.initialize_all_variables())
 
