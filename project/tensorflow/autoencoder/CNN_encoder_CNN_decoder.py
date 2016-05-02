@@ -25,7 +25,7 @@ def autoencoder(n_filters=[1,10,10,10], filter_size=[3,3,3,3]):
         encoder.append(W)
         output = tf.nn.relu(
             tf.nn.conv2d(
-                current_input, W, strides=[1, 2, 2, 1], padding='SAME') + b)
+                current_input, W, strides=[1, 1, 1, 1], padding='SAME') + b)
         #stride 1,2,2,1 collapses the dimensions
         # by 1/2 (roughly)
         #print(output.get_shape().as_list())
@@ -53,7 +53,7 @@ def autoencoder(n_filters=[1,10,10,10], filter_size=[3,3,3,3]):
         output = tf.nn.relu( tf.nn.conv2d_transpose(
                 current_input, W_1,
                 tf.pack([tf.shape(x)[0], shape[1], shape[2], shape[3]]),
-                strides=[1, 2, 2, 1], padding='SAME') +  b)
+                strides=[1, 1, 1, 1], padding='SAME') +  b)
         current_input = output
         #print(current_input.get_shape().as_list())
 
@@ -72,7 +72,7 @@ def test_mnist():
     mean_img = np.mean(mnist.train.images, axis=0)
     ae = autoencoder()
 
-    learning_rate = 0.01
+    learning_rate = 0.001
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(ae['cost'])
 
     sess = tf.Session()
