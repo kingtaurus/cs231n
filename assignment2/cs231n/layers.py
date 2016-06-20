@@ -109,6 +109,17 @@ def affine_backward(dout, cache):
 
 # time_diff()
 
+def exponential_lu_forward(x, alpha=1.):
+  out = None
+  out = np.piecewise(x, [x < 0, x >=0 ], [alpha * (np.exp(x) - 1), x])
+  return out, (x,alpha)
+
+def exponential_lu_backward(dout, cache):
+  dx = None
+  x, alpha = cache
+  dx = np.piecewise(x, [x < 0, x>0], [alpha * np.exp(x), 1])
+  return dx
+
 def continuous_appx_relu_forward(x, alpha = 1):
   out = None
   out = np.log(1 + np.exp(alpha * x))
