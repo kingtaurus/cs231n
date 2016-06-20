@@ -139,7 +139,8 @@ def leaky_relu_forward(x, alpha):
 
   #this needs to broadcast
   out_n = np.maximum(0, -alpha*x)
-  out = out_p + out_n
+  #so negative values become positive (so out_n will have positive entries)
+  out = out_p - out_n
 
   cache = x, alpha
   return out, cache
@@ -210,7 +211,7 @@ def relu_backward(dout, cache):
   # TODO: Implement the ReLU backward pass.                                   #
   #############################################################################
   dx = np.array(dout, copy=True)
-  dx[ x < 0] = 0
+  dx[ x < 0 ] = 0
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################

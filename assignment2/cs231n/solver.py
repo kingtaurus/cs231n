@@ -115,6 +115,7 @@ class Solver(object):
 
     self.print_every = kwargs.pop('print_every', 10)
     self.verbose = kwargs.pop('verbose', True)
+    self.current_location = 0
 
     # Throw an error if there are extra keyword arguments
     if len(kwargs) > 0:
@@ -143,6 +144,7 @@ class Solver(object):
     self.train_acc_history = []
     self.val_acc_history = []
     self.epoch_losses = {}
+    self.current_location = 0
 
     # Make a deep copy of the optim_config for each parameter
     self.optim_configs = {}
@@ -202,6 +204,39 @@ class Solver(object):
       self.model.params[p] = next_w
       self.optim_configs[p] = next_config
 
+  def _step_shuffled(self):
+    num_train = self.X_train.shape[0]
+    X_batch = self.X_train[self.current_location:self.current_location + self.batch_size]
+    y_batch = self.y_train[self.current_location:self.current_location + self.batch_size]
+    self.current_location = self.current_location + self.batch_size
+
+    # Compute loss and gradient
+    loss, grads = self.model.loss(X_batch, y_batch)
+    self.loss_history.append(loss)
+
+    if self.current_location >= num_train:
+      self.current_location = 0
+      if self.verbose:
+        print("Shuffling Training Data (end of epoch task);")
+      #shuffle the dataset
+      rng_state = np.random.get_state()
+      np.random.shuffle(self.X_train)
+      np.random.set_state(rng_state)
+      np.random.shuffle(self.y_train)
+
+    #epoch_losses are the found losses per epoch
+    current_epoch = self.epoch_losses.get(self.epoch, [])
+    current_epoch.append(loss)
+    self.epoch_losses[self.epoch] = current_epoch
+
+    # Perform a parameter update
+    for p, w in self.model.params.items():
+      dw = grads[p]
+      config = self.optim_configs[p]
+      next_w, next_config = self.update_rule(w, dw, config)
+      self.model.params[p] = next_w
+      self.optim_configs[p] = next_config
+
   def check_accuracy(self, X, y, num_samples=None, batch_size=100):
     """
     Check accuracy of the model on the provided data.
@@ -252,7 +287,8 @@ class Solver(object):
     num_iterations = self.num_epochs * iterations_per_epoch
 
     for t in range(num_iterations):
-      self._step()
+      #self._step()
+      self._step_shuffled()
 
       # Maybe print training loss
       if self.verbose and t % self.print_every == 0:
