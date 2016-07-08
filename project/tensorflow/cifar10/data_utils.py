@@ -6,7 +6,7 @@ from scipy.misc import imread
 def load_CIFAR_batch(filename):
   """ load single batch of cifar """
   with open(filename, 'rb') as f:
-    datadict = pickle.load(f,encoding='latin1')
+    datadict = pickle.load(f, encoding='latin1')
     X = datadict['data']
     Y = datadict['labels']
     X = X.reshape(10000, 3, 32, 32).transpose(0,2,3,1).astype("float")
@@ -57,9 +57,9 @@ def get_CIFAR10_data(dataset_dir = "datasets/cifar-10-batches-py", num_training=
     X_test -= mean_image
     
     # Transpose so that channels come first
-    X_train = X_train.transpose(0, 3, 1, 2).copy()
-    X_val = X_val.transpose(0, 3, 1, 2).copy()
-    X_test = X_test.transpose(0, 3, 1, 2).copy()
+    # X_train = X_train.transpose(0, 3, 1, 2).copy()
+    # X_val = X_val.transpose(0, 3, 1, 2).copy()
+    # X_test = X_test.transpose(0, 3, 1, 2).copy()
 
     # Package data into a dictionary
     return {
