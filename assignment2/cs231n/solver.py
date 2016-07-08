@@ -220,9 +220,11 @@ class Solver(object):
         print("Shuffling Training Data (end of epoch task);")
       #shuffle the dataset
       rng_state = np.random.get_state()
-      np.random.shuffle(self.X_train)
+      X_train = np.random.permutation(self.X_train)
       np.random.set_state(rng_state)
-      np.random.shuffle(self.y_train)
+      y_train = np.random.permutation(self.y_train)
+      #shuffle is wrong (all entries;)
+      #permute does it along the first index
 
     #epoch_losses are the found losses per epoch
     current_epoch = self.epoch_losses.get(self.epoch, [])
