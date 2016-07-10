@@ -55,7 +55,11 @@ def get_CIFAR10_data(dataset_dir = "datasets/cifar-10-batches-py", num_training=
     X_train -= mean_image
     X_val -= mean_image
     X_test -= mean_image
-    
+
+    std_image = np.std(X_train, axis=0)
+    X_train /= std_image
+    X_val /= std_image
+    X_test /= std_image
     # Transpose so that channels come first
     # X_train = X_train.transpose(0, 3, 1, 2).copy()
     # X_val = X_val.transpose(0, 3, 1, 2).copy()

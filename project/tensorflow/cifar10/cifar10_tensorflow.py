@@ -197,6 +197,9 @@ def main():
         log_device_placement=False))
   sess.run(init)
 
+  train_dir = "cifar10_results"
+  summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
+
   BATCH_SIZE = 128
 
   for step in range(300):
@@ -210,14 +213,15 @@ def main():
     start_time = time.time()
     feed_dict = { X_image : X_batch, y_label : y_batch}
     _, loss_value, accuracy, acc_str, xentropy_str = sess.run([train_op, loss_op, accuracy_op, acc_summary, cross_entropy_loss], feed_dict=feed_dict)
+    assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
     if step % 10 == 0:
       num_valid = data['X_val'].shape[0]
       batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
       X_val_batch = data['X_val'][batch_valid_mask]
       y_val_batch = data['y_val'][batch_valid_mask]
       valid_dict = { X_image : X_val_batch, y_label : y_val_batch}
-      format_str = ('%s: step %d, loss = %.3f, accuracy = %.3f, accuracy (validation) = %.3f')
-      print( format_str % (datetime.now(), step, loss_value, accuracy, accuracy_op.eval(feed_dict=valid_dict, session=sess)))
+      format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (validation) = {4:>3.2f}')
+      print( format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*accuracy_op.eval(feed_dict=valid_dict, session=sess)))
   # rng_state = np.random.get_state()
   # X_train = np.random.permutation(X_train)
   # np.random.set_state(rng_state)
