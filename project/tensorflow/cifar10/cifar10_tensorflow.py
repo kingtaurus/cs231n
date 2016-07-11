@@ -149,6 +149,7 @@ def train(total_loss, global_step):
 
   for grad, var in grads:
     if grad is not None:
+      print("Found gradients for: ", var.op.name)
       tf.histogram_summary(var.op.name + "/gradients", grad)
 
   with tf.control_dependencies([apply_gradient_op]):
@@ -168,11 +169,10 @@ def main():
   #PLACEHOLDER VARIABLES
   keep_prob = tf.placeholder(dtype=tf.float32, shape=[1])
   learning_rate = tf.placeholder(dtype=tf.float32, shape=[1])
-  #Not used --- ^
+  #Not used --- ^ (currently)
 
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
-
 
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
@@ -202,7 +202,7 @@ def main():
 
   BATCH_SIZE = 128
 
-  for step in range(300):
+  for step in range(10000):
     num_train = data['X_train'].shape[0]
     if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
       print("Completed Epoch: %d" % (BATCH_SIZE * (step) // num_train + 1))
@@ -213,7 +213,12 @@ def main():
     start_time = time.time()
     feed_dict = { X_image : X_batch, y_label : y_batch}
     _, loss_value, accuracy, acc_str, xentropy_str = sess.run([train_op, loss_op, accuracy_op, acc_summary, cross_entropy_loss], feed_dict=feed_dict)
+    summary_writer.add_summary(acc_str, step)
+    summary_writer.add_summary(xentropy_str, step)
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+    if step % 100 == 0:
+      summary_str = sess.run(summary_op, feed_dict=feed_dict)
+      summary_writer.add_summary(summary_str, step)
     if step % 10 == 0:
       num_valid = data['X_val'].shape[0]
       batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
