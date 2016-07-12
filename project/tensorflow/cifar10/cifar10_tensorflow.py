@@ -55,9 +55,11 @@ def variable_summaries(variable, name):
     tf.scalar_summary('max/' + name, tf.reduce_max(variable))
     tf.scalar_summary('min/' + name, tf.reduce_min(variable))
 
+LOSSES_COLLECTION  = 'regularizer_losses'
+DEFAULT_REG_WEIGHT =  1e-2
 
-# LOSSES_COLLECTION  = 'regularizer_losses'
-# DEFAULT_REG_WEIGHT =  1e-4
+#reg_placeholder = tf.placeholder(dtype=tf.float32, shape=[1])
+## may want to add this to the inputs for rcl (and inference methods)
 # with tf.op_scope([tensor], scope, 'L2Loss'):
 #     weight = tf.convert_to_tensor(weight,
 #                               dtype=tensor.dtype.base_dtype,
@@ -94,8 +96,12 @@ def fcl_relu(layer_in, output_size, name):
     variable_summaries(weights, weights.name)
     #variable_summaries(bias, bias.name)
     activation_summaries(layer, layer.name)
+    regularizer_loss = tf.mul(DEFAULT_REG_WEIGHT, tf.nn.l2_loss(weights))
+    tf.add_to_collection(LOSSES_COLLECTION, regularizer_loss)
   return layer
+
 NUM_CLASSES = 10
+
 def inference(images, classes = NUM_CLASSES):
   layer = conv_relu(images, [3,3,3,64], [64], "conv_1")
   layer = conv_relu(layer,  [3,3,64,64], [64], "conv_2")
@@ -116,6 +122,8 @@ def inference(images, classes = NUM_CLASSES):
     variable_summaries(weights, weights.name)
     #variable_summaries(biases, biases.name)
     #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
+    regularizer_loss = tf.mul(DEFAULT_REG_WEIGHT, tf.nn.l2_loss(weights))
+    tf.add_to_collection(LOSSES_COLLECTION, regularizer_loss)
   return pre_softmax_linear
 
 def loss(logits, labels):
@@ -129,7 +137,7 @@ def loss(logits, labels):
 
 INITIAL_LEARNING_RATE = 0.001
 LEARNING_RATE_DECAY_FACTOR = 0.90
-DECAY_STEPS = 5000
+DECAY_STEPS = 1000
 
 def train(total_loss, global_step):
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
@@ -169,6 +177,7 @@ def main():
   #PLACEHOLDER VARIABLES
   keep_prob = tf.placeholder(dtype=tf.float32, shape=[1])
   learning_rate = tf.placeholder(dtype=tf.float32, shape=[1])
+  regularizer_weight = tf.placeholder(dtype=tf.float32, shape=[1])
   #Not used --- ^ (currently)
 
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
@@ -179,15 +188,22 @@ def main():
   #MODEL construction
   logits  = inference(X_image)
   loss_op = loss(logits, y_label)
+
+  reg_loss = tf.reduce_sum(tf.get_collection(LOSSES_COLLECTION))
+  total_loss = loss_op + reg_loss
+
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
   train_op = train(loss_op, global_step)
   saver = tf.train.Saver(tf.all_variables())
 
   #Summary operation
+  tf.image_summary('images', X_image)
   summary_op = tf.merge_all_summaries()
 
-  acc_summary = tf.scalar_summary('accuracy', accuracy_op)
-  cross_entropy_loss = tf.scalar_summary('total_loss_raw', loss_op)
+  acc_summary        = tf.scalar_summary('accuracy', accuracy_op)
+  cross_entropy_loss = tf.scalar_summary('loss_raw', loss_op)
+  reg_loss_summary   = tf.scalar_summary('regularization_loss', reg_loss)
+  total_loss_summary = tf.scalar_summary('total_loss', total_loss)
 
   acc_val_summary = tf.scalar_summary('accuracy_validation', accuracy_op)
 
@@ -201,20 +217,21 @@ def main():
   summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
 
   BATCH_SIZE = 128
-
+  print("Starting Training.")
   for step in range(10000):
     num_train = data['X_train'].shape[0]
     if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
-      print("Completed Epoch: %d" % (BATCH_SIZE * (step) // num_train + 1))
+      print("Completed Epoch: %d" % (BATCH_SIZE * (step) // num_train ))
 
     batch_mask = np.random.choice(num_train, BATCH_SIZE)
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
     feed_dict = { X_image : X_batch, y_label : y_batch}
-    _, loss_value, accuracy, acc_str, xentropy_str = sess.run([train_op, loss_op, accuracy_op, acc_summary, cross_entropy_loss], feed_dict=feed_dict)
+    _, loss_value, accuracy, acc_str, xentropy_str, reg_loss_str = sess.run([train_op, total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary], feed_dict=feed_dict)
     summary_writer.add_summary(acc_str, step)
     summary_writer.add_summary(xentropy_str, step)
+    summary_writer.add_summary(reg_loss_str, step)
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
     if step % 100 == 0:
       summary_str = sess.run(summary_op, feed_dict=feed_dict)
