@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 from datetime import datetime
 
@@ -56,7 +58,7 @@ def variable_summaries(variable, name):
     tf.scalar_summary('min/' + name, tf.reduce_min(variable))
 
 LOSSES_COLLECTION  = 'regularizer_losses'
-DEFAULT_REG_WEIGHT =  1e-2
+DEFAULT_REG_WEIGHT =  1e-4
 
 #reg_placeholder = tf.placeholder(dtype=tf.float32, shape=[1])
 ## may want to add this to the inputs for rcl (and inference methods)
@@ -135,9 +137,12 @@ def loss(logits, labels):
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.001
+INITIAL_LEARNING_RATE = 0.005
 LEARNING_RATE_DECAY_FACTOR = 0.90
-DECAY_STEPS = 1000
+BATCH_SIZE = 256
+MAX_STEPS = 100000
+
+DECAY_STEPS = 12 * BATCH_SIZE
 
 def train(total_loss, global_step):
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
@@ -216,9 +221,8 @@ def main():
   train_dir = "cifar10_results"
   summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
 
-  BATCH_SIZE = 128
   print("Starting Training.")
-  for step in range(10000):
+  for step in range(MAX_STEPS):
     num_train = data['X_train'].shape[0]
     if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
       print("Completed Epoch: %d" % (BATCH_SIZE * (step) // num_train ))
@@ -244,6 +248,9 @@ def main():
       valid_dict = { X_image : X_val_batch, y_label : y_val_batch}
       format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (validation) = {4:>3.2f}')
       print( format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*accuracy_op.eval(feed_dict=valid_dict, session=sess)))
+    if (step % 1000 == 0 and step > 0) or (step + 1) == MAX_STEPS:
+      checkpoint_path = os.path.join(train_dir, 'model.ckpt')
+      saver.save(sess, checkpoint_path, global_step=step)
   # rng_state = np.random.get_state()
   # X_train = np.random.permutation(X_train)
   # np.random.set_state(rng_state)
