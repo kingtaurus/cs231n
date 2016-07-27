@@ -57,15 +57,6 @@ def generate_code(lp_code = None):
     for x in ld:
         plate += random.choice(ld_code[x])
     return plate
-    # return "{}{}{}{} {}{}{}".format(
-    #     random.choice(common.LETTERS),
-    #     random.choice(common.LETTERS),
-    #     random.choice(common.DIGITS),
-    #     random.choice(common.DIGITS),
-    #     random.choice(common.LETTERS),
-    #     random.choice(common.LETTERS),
-    #     random.choice(common.LETTERS))
-
 
 def main():
     char_ims = dict(make_character_images(FONT_HEIGHT))
