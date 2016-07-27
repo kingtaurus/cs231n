@@ -20,16 +20,44 @@ SIZE = 32
 image = dict(make_character_images(SIZE))
 #EAT the generator (key, image)
 
-def display_character():
-    char_image = np.array(image[random.choice(image.keys())])
-    #print(char_image)
-    plt.figure(figsize=(10,10))
+def display_character(in_char = None, figsize=(10,10)):
+    """ Displays a random character
+     (1) the character images are stored in image (dictionary)
+         image['c'] -> numpy.ndarray
+    """
+    character = in_char
+    if in_char is None:
+        character = random.choice(image.keys())
+
+    char_image = np.array(image[character])
+    plt.figure(figsize=figsize)
     displayed_image = plt.imshow(char_image)
     displayed_image.set_cmap('hot')
+    plt.axis('off')
     plt.show()
+    return character
+
+
+def display_histogram(in_char = None, figsize=(10,10)):
+    character = in_char
+    if in_char is None:
+        character = random.choice(image.keys())
+    char_image = np.array(image[character])
+    plt.figure(figsize=figsize)
+    plt.hist(char_image.flatten(), 256, range=(0.,1.))
+    plt.title("Character [%s] Histogram" % character)
+    plt.show()
+    return character
+
+def display_all_characters(figsize=(10,10)):
+    return 0
+
+def display_all_histograms(figsize=(10,10)):
+    return 0
 
 def main():
     display_character()
+    display_histogram()
     char_image = np.array(image[random.choice(image.keys())])
     #print(char_image)
     plt.figure(figsize=(10,10))
