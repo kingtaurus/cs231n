@@ -30,10 +30,13 @@ FONT_PATH   = "UKNumberPlate.ttf"
 
 CHARS = common.CHARS + " "
 
+ld_code = { 'L' : common.LETTERS, 'D' : common.DIGITS, 'S' : ' '}
+
 def make_character_images(output_height):
     font_size = output_height * 4
     font   = ImageFont.truetype(FONT_PATH, font_size)
     height = max(font.getsize(c)[1] for c in CHARS)
+    #require the height to always be the same
 
     for c in CHARS:
         width = font.getsize(c)[0]
@@ -45,9 +48,30 @@ def make_character_images(output_height):
         im = im.resize((int(width * scale), output_height), Image.ANTIALIAS)
         yield c, numpy.array(im)[:, :, 0].astype(numpy.float32) / 255.
 
+def generate_code(lp_code = None):
+    #licence descriptor
+    ld = lp_code
+    if lp_code is None:
+        ld = list("LLDDSLLL")
+    plate = ""
+    for x in ld:
+        plate += random.choice(ld_code[x])
+    return plate
+    # return "{}{}{}{} {}{}{}".format(
+    #     random.choice(common.LETTERS),
+    #     random.choice(common.LETTERS),
+    #     random.choice(common.DIGITS),
+    #     random.choice(common.DIGITS),
+    #     random.choice(common.LETTERS),
+    #     random.choice(common.LETTERS),
+    #     random.choice(common.LETTERS))
+
+
 def main():
     char_ims = dict(make_character_images(FONT_HEIGHT))
-    print(char_ims)
+    for i in range(10):
+        print(generate_code())
+
     exit(0)
 
 if __name__ == '__main__':
