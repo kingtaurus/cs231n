@@ -72,11 +72,44 @@ def generate_code(lp_code = None):
     plate = ''.join([ random.choice(ld_code[c]) for c in ld ])
     return plate
 
+def generate_plate(char_to_img, code = None):
+    h_padding = random.uniform(0.2, 0.4) * FONT_HEIGHT
+    v_padding = random.uniform(0.1, 0.3) * FONT_HEIGHT
+    spacing = FONT_HEIGHT * random.uniform(-0.05, 0.05)
+    radius = 1 + int(FONT_HEIGHT * 0.1 * random.random())
+    if code is None:
+        code = generate_code()
+
+    text_width = np.sum([char_to_img[c].shape[1] for c in code])
+    text_width += (len(code) - 1) * spacing
+
+    out_shape = (int(FONT_HEIGHT + v_padding * 2),
+                 int(text_width + h_padding * 2))
+
+    text_mask = np.zeros(out_shape)
+
+    x = h_padding
+    y = v_padding
+
+    for c in code:
+        char_im = char_to_img[c]
+        ix, iy = int(x), int(y)
+        text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
+        x += char_im.shape[1] + spacing
+
+    plate = (np.ones(out_shape)[:,:,np.newaxis] * (1.,0.,0.) * ( 1 - text_mask)[:,:,np.newaxis] +
+             np.ones(out_shape)[:,:,np.newaxis] * (0.,1.,0.) * (text_mask)[:,:,np.newaxis])
+    return plate
+    #this generates a plate
+
+
+
+
 def main():
     char_ims = dict(make_character_images(FONT_HEIGHT))
     for i in range(10):
         print(generate_code())
-
+    generate_plate(char_ims)
     exit(0)
 
 if __name__ == '__main__':
