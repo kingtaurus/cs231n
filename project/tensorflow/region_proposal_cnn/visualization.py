@@ -10,6 +10,7 @@ import sys
 
 import matplotlib.pyplot as plt
 from construct_proposals import make_character_images
+from construct_proposals import generate_plate
 
 import numpy as np
 
@@ -36,7 +37,6 @@ def display_character(in_char = None, figsize=(10,10)):
     plt.axis('off')
     plt.show()
     return character
-
 
 def display_histogram(in_char = None, figsize=(10,10)):
     character = in_char
@@ -88,6 +88,10 @@ def main():
         displayed_img = plt.imshow(plt_img)
         displayed_img.set_cmap('hot')
         plt.axis('off')
+    plt.show()
+
+    plt.figure(figsize=(10,10))
+    plt.imshow(generate_plate(image))
     plt.show()
 
     exit(0)
