@@ -16,7 +16,7 @@ import random
 import sys
 
 import cv2
-import numpy
+import numpy as np
 
 from PIL import Image
 from PIL import ImageDraw
@@ -46,16 +46,30 @@ def make_character_images(output_height):
         draw.text((0, 0), c, (255, 255, 255), font=font)
         scale = float(output_height) / height
         im = im.resize((int(width * scale), output_height), Image.ANTIALIAS)
-        yield c, numpy.array(im)[:, :, 0].astype(numpy.float32) / 255.
+        yield c, np.array(im)[:, :, 0].astype(np.float32) / 255.
 
 def generate_code(lp_code = None):
+    """
+    generate_code(lp_code = None) generate a simple "RANDOM" license plate code
+
+      takes either a string descriptor
+      with the following format:
+        "L", "D", "S": L corresponds to letters;
+                       D corresponds to digits;
+                       S corresponds to spaces;
+      there is no length requirement;
+
+      if None (or nothing is passed in):
+        it defaults to "LLDDSLL"
+      returns a string of characters of the correct format;
+    """
     #licence descriptor
     ld = lp_code
     if lp_code is None:
-        ld = list("LLDDSLLL")
-    plate = ""
-    for x in ld:
-        plate += random.choice(ld_code[x])
+        ld = "LLDDSLLL"
+
+    #join together a comprehension
+    plate = ''.join([ random.choice(ld_code[c]) for c in ld ])
     return plate
 
 def main():
