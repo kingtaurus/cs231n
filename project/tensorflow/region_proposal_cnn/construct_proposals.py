@@ -47,6 +47,10 @@ def make_character_images(output_height):
         scale = float(output_height) / height
         im = im.resize((int(width * scale), output_height), Image.ANTIALIAS)
         yield c, np.array(im)[:, :, 0].astype(np.float32) / 255.
+    #CAN add extra characters after the fact here
+    #(1) for example wide space would take ' ' and widen it to have some
+    #    some larger width np.zeros(size=(y,x))
+    #(2) characters like '-' might also be available
 
 def generate_code(lp_code = None):
     """
@@ -71,6 +75,23 @@ def generate_code(lp_code = None):
     #join together a comprehension
     plate = ''.join([ random.choice(ld_code[c]) for c in ld ])
     return plate
+
+
+
+#the code below can be updated in the following manner:
+# (1) add the ability to define the padding (pad_left, pad_right, pad_top, pad_bottom)
+# (2) add the ability to left, right align relative to a fixed size 'plate'
+#     or maximum sized plate:
+#     AB33 ABAC
+#     GREG
+#          KING
+# CENTRAL alignment should be neglected (for now)
+# (3) alpha channel? (letters would have alpha = 1)
+#     background could then be textured/shadowed gradient in addition to colored;
+# (4) additional fonts (i.e. each plate might have a font);
+# (5) additional information on the plate.
+# (6) addition of filtering the plate (i.e. smoothing out the edges, blurring etc.)
+#
 
 def generate_plate(char_to_img, code = None):
     h_padding = random.uniform(0.2, 0.4) * FONT_HEIGHT
