@@ -94,6 +94,21 @@ def main():
     plt.imshow(generate_plate(image))
     plt.show()
 
+    #using the new code ('w') corresponds to a wide space
+    plt.figure(figsize=(10,10))
+    plt.imshow(generate_plate(image,"UW55wKXJ"))
+    plt.show()
+
+    #using the new code ('d') corresponds to a double space
+    plt.figure(figsize=(10,10))
+    plt.imshow(generate_plate(image,"GR40dSEU"))
+    plt.show()
+
+    #using the new code ('q') corresponds to a quad space
+    plt.figure(figsize=(10,10))
+    plt.imshow(generate_plate(image,"VB57qWXV"))
+    plt.show()
+
     exit(0)
 
 if __name__ == '__main__':
