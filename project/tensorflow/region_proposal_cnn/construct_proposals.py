@@ -30,7 +30,10 @@ FONT_PATH   = "UKNumberPlate.ttf"
 
 CHARS = common.CHARS + " "
 
-ld_code = { 'L' : common.LETTERS, 'D' : common.DIGITS, 'S' : ' '}
+ld_code = { 'L' : common.LETTERS, 'D' : common.DIGITS, 'S' : ' ',
+            'X' : 'd',
+            'Q' : 'q',
+            'W' : 'w'}
 
 def make_character_images(output_height):
     font_size = output_height * 4
@@ -47,6 +50,37 @@ def make_character_images(output_height):
         scale = float(output_height) / height
         im = im.resize((int(width * scale), output_height), Image.ANTIALIAS)
         yield c, np.array(im)[:, :, 0].astype(np.float32) / 255.
+
+    #double space
+    wide_space = "d"
+    width = font.getsize(' ')[0]
+    im = Image.new("RGBA", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.text((0, 0), c, (255, 255, 255), font=font)
+    scale = float(output_height) / height
+    im = im.resize((int(width * scale * 2.0), output_height), Image.ANTIALIAS)
+    yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
+
+    #wide space
+    wide_space = "w"
+    width = font.getsize(' ')[0]
+    im = Image.new("RGBA", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.text((0, 0), c, (255, 255, 255), font=font)
+    scale = float(output_height) / height
+    im = im.resize((int(width * scale * 1.5), output_height), Image.ANTIALIAS)
+    yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
+
+    #quad space
+    wide_space = "q"
+    width = font.getsize(' ')[0]
+    im = Image.new("RGBA", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.text((0, 0), c, (255, 255, 255), font=font)
+    scale = float(output_height) / height
+    im = im.resize((int(width * scale * 4.0), output_height), Image.ANTIALIAS)
+    yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
+
     #CAN add extra characters after the fact here
     #(1) for example wide space would take ' ' and widen it to have some
     #    some larger width np.zeros(size=(y,x))
@@ -75,7 +109,6 @@ def generate_code(lp_code = None):
     #join together a comprehension
     plate = ''.join([ random.choice(ld_code[c]) for c in ld ])
     return plate
-
 
 
 #the code below can be updated in the following manner:
@@ -118,19 +151,57 @@ def generate_plate(char_to_img, code = None):
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
         x += char_im.shape[1] + spacing
 
+    #case (1): simple colors, just change the number and allow for the broadcast
+    #           rules to take over
+    #case (2): color can be sampled from texture of the same size and shape
+    #
+    #Options: create the plate later (just create masks);
+    #color can be changed here -----------------------v
     plate = (np.ones(out_shape)[:,:,np.newaxis] * (1.,0.,0.) * ( 1 - text_mask)[:,:,np.newaxis] +
              np.ones(out_shape)[:,:,np.newaxis] * (0.,1.,0.) * (text_mask)[:,:,np.newaxis])
     return plate
     #this generates a plate
 
+def euler_matrix(yaw, pitch, roll):
+    """Construct an Euler Rotation Matrix from yaw, pitch and roll"""
+    # z-y'-x'' (or z-y-x), intrinsic rotations are known as: yaw, pitch, roll
 
+    # roll is a counter-clockwise rotation (alpha) about the x-axis
+    cos_a, sin_a = np.cos(roll), np.sin(roll)
+    roll_mat = np.array([[ 1,      0,      0],
+                         [ 0,  cos_g, -sin_g],
+                         [ 0,  sin_g,  cos_g]])
 
+    #pitch is a counter-clockwise rotation (beta) about the y-axis
+    cos_b, sin_b = np.cos(pitch), np.sin(pitch)
+    pitch_mat = np.array([[ cos_b, 0, sin_b],
+                          [     0, 1,     0],
+                          [-sin_b, 0, cos_b]])
+
+    #yaw is a counter-clockwise rotation (gamma) about the z-axis
+    cos_g, sin_g = np.cos(yaw), np.sin(yaw)
+    yaw_mat = np.array([[cos_a, -sin_a, 0],
+                        [sin_a,  cos_a, 0],
+                        [    0,      0, 1]])
+
+    rotation_matrix = np.matmul(np.matmul(yaw_mat, pitch_mat), roll_mat)
+    #rotate first about the x-axis, then y-axis, and finally about z-axis
+    #note: if this fails might be due to numpy version
+    #      (1) np.linalg.matmul(x,y)
+    return rotation_matrix
 
 def main():
     char_ims = dict(make_character_images(FONT_HEIGHT))
+    print(char_ims.keys())
     for i in range(10):
         print(generate_code())
+    print(generate_code("LLDDXLLL"))
+    print(generate_code("LLDDQLLL"))
+    print(generate_code("LLDDWLLL"))
     generate_plate(char_ims)
+    print(euler_matrix(1.,1.,1.))
+    print(np.matmul(euler_matrix(np.pi,0,0.), np.array([1.,0.,0.])))
+    #
     exit(0)
 
 if __name__ == '__main__':
