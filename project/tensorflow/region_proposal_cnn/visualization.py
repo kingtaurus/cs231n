@@ -11,6 +11,7 @@ import sys
 import matplotlib.pyplot as plt
 from construct_proposals import make_character_images
 from construct_proposals import generate_plate
+from construct_proposals import generate_plate_alt
 
 import numpy as np
 
@@ -91,24 +92,34 @@ def main():
     plt.show()
 
     plt.figure(figsize=(10,10))
-    plt.imshow(generate_plate(image))
+    code, img = generate_plate(image)
+    plt.imshow(img)
     plt.show()
 
     #using the new code ('w') corresponds to a wide space
     plt.figure(figsize=(10,10))
-    plt.imshow(generate_plate(image,"UW55wKXJ"))
+    plt.title("UW55wKXJ")
+    code, img = generate_plate(image,"UW55wKXJ")
+    plt.imshow(img)
     plt.show()
 
     #using the new code ('d') corresponds to a double space
     plt.figure(figsize=(10,10))
-    plt.imshow(generate_plate(image,"GR40dSEU"))
+    plt.title("GR40dSEU")
+    plt.imshow(generate_plate(image,"GR40dSEU")[1])
     plt.show()
 
     #using the new code ('q') corresponds to a quad space
     plt.figure(figsize=(10,10))
-    plt.imshow(generate_plate(image,"VB57qWXV"))
+    plt.title("VB57qWXV")
+    plt.imshow(generate_plate(image,"VB57qWXV")[1])
     plt.show()
 
+    characters, img = generate_plate_alt()
+    plt.figure(figsize=(10,10))
+    plt.title(characters)
+    plt.imshow(img)
+    plt.show()
     exit(0)
 
 if __name__ == '__main__':

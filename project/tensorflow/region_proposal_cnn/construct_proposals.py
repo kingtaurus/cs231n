@@ -30,7 +30,9 @@ FONT_PATH   = "UKNumberPlate.ttf"
 
 CHARS = common.CHARS + " "
 
-ld_code = { 'L' : common.LETTERS, 'D' : common.DIGITS, 'S' : ' ',
+ld_code = { 'L' : common.LETTERS,
+            'D' : common.DIGITS,
+            'S' : ' ',
             'X' : 'd',
             'Q' : 'q',
             'W' : 'w'}
@@ -124,7 +126,23 @@ def generate_code(lp_code = None):
 # (4) additional fonts (i.e. each plate might have a font);
 # (5) additional information on the plate.
 # (6) addition of filtering the plate (i.e. smoothing out the edges, blurring etc.)
-#
+
+def generate_plate_alt(output_height=16, pad=(5,5,5,5), characters=None):
+    top_pad, bottom_pad, left_pad, right_pad = pad
+
+    if characters is None:
+        characters = generate_code()
+
+    font_size = output_height * 4
+    font   = ImageFont.truetype(FONT_PATH, font_size)
+    height = max(font.getsize(c)[1] for c in characters)
+    width  = np.sum([font.getsize(c)[0] for c in characters])
+
+    #require the height to always be the same
+    im = Image.new("RGBA", (width + left_pad + right_pad, height + top_pad + bottom_pad), (0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.text((left_pad, top_pad), characters, (255, 255, 255), font=font)
+    return characters, np.array(im)[:, :, 0].astype(np.float32) / 255.
 
 def generate_plate(char_to_img, code = None):
     h_padding = random.uniform(0.2, 0.4) * FONT_HEIGHT
@@ -159,7 +177,7 @@ def generate_plate(char_to_img, code = None):
     #color can be changed here -----------------------v
     plate = (np.ones(out_shape)[:,:,np.newaxis] * (1.,0.,0.) * ( 1 - text_mask)[:,:,np.newaxis] +
              np.ones(out_shape)[:,:,np.newaxis] * (0.,1.,0.) * (text_mask)[:,:,np.newaxis])
-    return plate
+    return code, plate
     #this generates a plate
 
 def euler_matrix(yaw, pitch, roll):
@@ -169,8 +187,8 @@ def euler_matrix(yaw, pitch, roll):
     # roll is a counter-clockwise rotation (alpha) about the x-axis
     cos_a, sin_a = np.cos(roll), np.sin(roll)
     roll_mat = np.array([[ 1,      0,      0],
-                         [ 0,  cos_g, -sin_g],
-                         [ 0,  sin_g,  cos_g]])
+                         [ 0,  cos_a, -sin_a],
+                         [ 0,  sin_a,  cos_a]])
 
     #pitch is a counter-clockwise rotation (beta) about the y-axis
     cos_b, sin_b = np.cos(pitch), np.sin(pitch)
@@ -180,8 +198,8 @@ def euler_matrix(yaw, pitch, roll):
 
     #yaw is a counter-clockwise rotation (gamma) about the z-axis
     cos_g, sin_g = np.cos(yaw), np.sin(yaw)
-    yaw_mat = np.array([[cos_a, -sin_a, 0],
-                        [sin_a,  cos_a, 0],
+    yaw_mat = np.array([[cos_g, -sin_g, 0],
+                        [sin_g,  cos_g, 0],
                         [    0,      0, 1]])
 
     rotation_matrix = np.matmul(np.matmul(yaw_mat, pitch_mat), roll_mat)
@@ -201,6 +219,7 @@ def main():
     generate_plate(char_ims)
     print(euler_matrix(1.,1.,1.))
     print(np.matmul(euler_matrix(np.pi,0,0.), np.array([1.,0.,0.])))
+    print(generate_plate_alt())
     #
     exit(0)
 
