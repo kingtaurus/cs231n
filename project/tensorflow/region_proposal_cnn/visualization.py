@@ -14,8 +14,12 @@ from construct_proposals import generate_plate
 from construct_proposals import generate_plate_alt
 
 import numpy as np
+import cv2
 
 import scipy.ndimage as ndimage
+
+from skimage import data
+from skimage.transform import rotate
 
 SIZE = 32
 
@@ -120,7 +124,37 @@ def main():
     plt.title(characters)
     plt.imshow(img)
     plt.show()
-    exit(0)
+
+    img = cv2.imread('/usr/share/backgrounds/Beach_by_Renato_Giordanelli.jpg',0)
+    plt.imshow(img, cmap = 'gray', interpolation = 'bicubic')
+    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
+    plt.show()
+
+    #scikit image manipulation
+    cam_image = data.camera()
+    print(rotate(cam_image, 2).shape)
+    plt.figure(figsize=(10,10))
+    plt.subplot(3,1,1)
+    plt.imshow(cam_image, cmap='gray')
+    plt.subplot(3,1,2)
+    plt.imshow(rotate(cam_image, 2, resize=True), cmap='gray')
+    print(rotate(cam_image, 2, resize=True).shape)
+    plt.subplot(3,1,3)
+    plt.imshow(rotate(cam_image, 90, resize=True), cmap='gray')
+    print(rotate(cam_image, 90, resize=True).shape)
+    plt.show()
+
+    #skimage.transform.swirl
+    #skimage.transform.warp
+    #from skimage.transform import SimilarityTransform
+    #tform = SimilarityTransform(translation=(0, -10))
+    #warped = warp(image, tform)
+
+    #def shift_down(xy):
+    #...xy[:, 1] -= 10
+    #...return xy
+    #warped = warp(image, shift_down)
+    return 0
 
 if __name__ == '__main__':
     main()
