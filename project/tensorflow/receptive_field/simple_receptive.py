@@ -37,6 +37,7 @@ def max_pool_2x2(x):
 # array[3,3,:] = 1
 ## chose a location
 # array = array[np.newaxis,:,:,:]
+## array --^ shape (batch_size, spatial_0, spatial_1, filters)
 
 # sess.run(grad_x_image, feed_dict={grad_layer: array, x_image: x_input})
 
@@ -79,8 +80,10 @@ loc = np.random.randint(0,total_size)
 
 print("loc = ", loc)
 print("unraveled index = ", np.unravel_index(loc, array.shape))
+
+tuple_loc = np.unravel_index(loc, array.shape)
 # array.ravel()[loc] = 1
-array[3,3,:] = 1
+array[tuple_loc[0],tuple_loc[1],:] = 1
 array = array[np.newaxis,:,:,:]
 
 x_input = np.zeros(x_image.get_shape())
