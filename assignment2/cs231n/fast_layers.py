@@ -24,8 +24,8 @@ def conv_forward_im2col(x, w, b, conv_param):
   assert (H + 2 * pad - filter_height) % stride == 0, 'height does not work'
 
   # Create output
-  out_height = (H + 2 * pad - filter_height) / stride + 1
-  out_width = (W + 2 * pad - filter_width) / stride + 1
+  out_height = (H + 2 * pad - filter_height) // stride + 1
+  out_width = (W + 2 * pad - filter_width) // stride + 1
   out = np.zeros((N, num_filters, out_height, out_width), dtype=x.dtype)
 
   # x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
@@ -55,8 +55,8 @@ def conv_forward_strides(x, w, b, conv_param):
   # Figure out output dimensions
   H += 2 * pad
   W += 2 * pad
-  out_h = (H - HH) / stride + 1
-  out_w = (W - WW) / stride + 1
+  out_h = (H - HH) // stride + 1
+  out_w = (W - WW) // stride + 1
 
   # Perform an im2col operation by picking clever strides
   shape = (C, HH, WW, N, out_h, out_w)
@@ -182,8 +182,8 @@ def max_pool_forward_reshape(x, pool_param):
   assert pool_height == pool_width == stride, 'Invalid pool params'
   assert H % pool_height == 0
   assert W % pool_height == 0
-  x_reshaped = x.reshape(N, C, H / pool_height, pool_height,
-                         W / pool_width, pool_width)
+  x_reshaped = x.reshape(N, C, H // pool_height, pool_height,
+                         W // pool_width, pool_width)
   out = x_reshaped.max(axis=3).max(axis=4)
 
   cache = (x, x_reshaped, out)
@@ -235,8 +235,8 @@ def max_pool_forward_im2col(x, pool_param):
   assert (H - pool_height) % stride == 0, 'Invalid height'
   assert (W - pool_width) % stride == 0, 'Invalid width'
 
-  out_height = (H - pool_height) / stride + 1
-  out_width = (W - pool_width) / stride + 1
+  out_height = (H - pool_height) // stride + 1
+  out_width = (W - pool_width) // stride + 1
 
   x_split = x.reshape(N * C, 1, H, W)
   x_cols = im2col(x_split, pool_height, pool_width, padding=0, stride=stride)
