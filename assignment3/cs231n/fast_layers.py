@@ -182,8 +182,8 @@ def max_pool_forward_reshape(x, pool_param):
   assert pool_height == pool_width == stride, 'Invalid pool params'
   assert H % pool_height == 0
   assert W % pool_height == 0
-  x_reshaped = x.reshape(N, C, H / pool_height, pool_height,
-                         W / pool_width, pool_width)
+  x_reshaped = x.reshape(N, C, H // pool_height, pool_height,
+                         W // pool_width, pool_width)
   out = x_reshaped.max(axis=3).max(axis=4)
 
   cache = (x, x_reshaped, out)
