@@ -192,7 +192,8 @@ class KNearestNeighbor(object):
       #########################################################################
       occurences = np.bincount(closest_classes)
       #bincount acts as a counter
-
+      #If you just want the smallest numerical label:
+      # y_pred[i] = np.sort(np.argmax(occurences), axis=None)
       max = np.amax(occurences)
       #amax the maximum value in occurences (i.e. the voting rank, giving all occurences the same weight)
 

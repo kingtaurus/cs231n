@@ -12,15 +12,24 @@ import matplotlib.pyplot as plt
 from construct_proposals import make_character_images
 from construct_proposals import generate_plate
 from construct_proposals import generate_plate_alt
+from construct_proposals import generate_bg
+from construct_proposals import generate_proposal
 
 import numpy as np
+import cv2
 
 import scipy.ndimage as ndimage
+
+from skimage import data
+from skimage.transform import rotate, warp
+from skimage.transform import AffineTransform, SimilarityTransform
 
 SIZE = 32
 
 image = dict(make_character_images(SIZE))
 #EAT the generator (key, image)
+
+cam_image = data.camera()
 
 def display_character(in_char = None, figsize=(10,10)):
     """ Displays a random character
@@ -92,14 +101,14 @@ def main():
     plt.show()
 
     plt.figure(figsize=(10,10))
-    code, img = generate_plate(image)
+    code, img, plate_mask = generate_plate(image)
     plt.imshow(img)
     plt.show()
 
     #using the new code ('w') corresponds to a wide space
     plt.figure(figsize=(10,10))
     plt.title("UW55wKXJ")
-    code, img = generate_plate(image,"UW55wKXJ")
+    code, img, plate_mask = generate_plate(image,"UW55wKXJ")
     plt.imshow(img)
     plt.show()
 
@@ -115,12 +124,59 @@ def main():
     plt.imshow(generate_plate(image,"VB57qWXV")[1])
     plt.show()
 
-    characters, img = generate_plate_alt()
+    characters, img, plate_mask = generate_plate_alt()
     plt.figure(figsize=(10,10))
     plt.title(characters)
     plt.imshow(img)
     plt.show()
-    exit(0)
+
+    img = cv2.imread('/usr/share/backgrounds/Beach_by_Renato_Giordanelli.jpg',0)
+    plt.imshow(img, cmap = 'gray', interpolation = 'bicubic')
+    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
+    plt.show()
+
+    #scikit image manipulation
+    print(rotate(cam_image, 2).shape)
+    plt.figure(figsize=(10,10))
+    plt.subplot(3,1,1)
+    plt.imshow(cam_image, cmap='gray')
+    plt.subplot(3,1,2)
+    plt.imshow(rotate(cam_image, 2, resize=True), cmap='gray')
+    print(rotate(cam_image, 2, resize=True).shape)
+    plt.subplot(3,1,3)
+    plt.imshow(rotate(cam_image, 90, resize=True), cmap='gray')
+    print(rotate(cam_image, 90, resize=True).shape)
+    plt.show()
+
+    #skimage.transform.swirl
+    #skimage.transform.warp
+    #from skimage.transform import SimilarityTransform
+    #tform = SimilarityTransform(translation=(0, -10))
+    #warped = warp(image, tform)
+
+    #def shift_down(xy):
+    #...xy[:, 1] -= 10
+    #...return xy
+    #warped = warp(image, shift_down)
+    #scikit-image skeletonize
+    #scikit-image.transform.AffineTransform
+    plt.figure(figsize = (10,10))
+    img = generate_bg()
+    plt.imshow(img)
+    plt.show()
+
+    # plt.figure(figsize=(10,10))
+    # affine = AffineTransform(rotation=0.1, shear=0.5, scale=(10.,10.))
+    # plt.imshow(warp(cam_image, affine), cmap='gray')
+    # plt.show()
+    # affine transformation (note, parameterization is different than a full
+    # 3D rotation matrix)
+    return 0
 
 if __name__ == '__main__':
+    plt.figure(figsize = (10,10))
+    img, code = generate_proposal(image)
+    plt.imshow(img)
+    plt.show()
+    exit(0)
     main()

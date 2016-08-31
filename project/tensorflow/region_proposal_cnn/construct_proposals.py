@@ -22,7 +22,12 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
+from skimage.transform import AffineTransform
+from skimage.transform import resize
+
 import utils.common as common
+
+import glob
 
 OUTPUT_SHAPE = (64,128)
 FONT_HEIGHT = 32
@@ -134,6 +139,9 @@ def generate_plate_alt(output_height=16, pad=(5,5,5,5), characters=None):
         characters = generate_code()
 
     font_size = output_height * 4
+
+    radius = 1 + int(FONT_HEIGHT * 0.1 * random.random())
+
     font   = ImageFont.truetype(FONT_PATH, font_size)
     height = max(font.getsize(c)[1] for c in characters)
     width  = np.sum([font.getsize(c)[0] for c in characters])
@@ -142,7 +150,21 @@ def generate_plate_alt(output_height=16, pad=(5,5,5,5), characters=None):
     im = Image.new("RGBA", (width + left_pad + right_pad, height + top_pad + bottom_pad), (0, 0, 0))
     draw = ImageDraw.Draw(im)
     draw.text((left_pad, top_pad), characters, (255, 255, 255), font=font)
-    return characters, np.array(im)[:, :, 0].astype(np.float32) / 255.
+    return characters, np.array(im)[:, :, 0].astype(np.float32) / 255., plate_mask(np.array(im).shape[0:2], radius)
+
+def plate_mask(shape, radius):
+    out = np.ones((shape[0],shape[1],1))
+    out[:radius, :radius]   = 0.0
+    out[-radius:, :radius]  = 0.0
+    out[:radius, -radius:]  = 0.0
+    out[-radius:, -radius:] = 0.0
+
+    #this can be done entirely with numpy (using np.ogrid and a mask)
+    cv2.circle(out, (radius, radius), radius, 1.0, -1)
+    cv2.circle(out, (radius, shape[0] - radius), radius, 1.0, -1)
+    cv2.circle(out, (shape[1] - radius, radius), radius, 1.0, -1)
+    cv2.circle(out, (shape[1] - radius, shape[0] - radius), radius, 1.0, -1)
+    return out
 
 def generate_plate(char_to_img, code = None):
     h_padding = random.uniform(0.2, 0.4) * FONT_HEIGHT
@@ -175,9 +197,11 @@ def generate_plate(char_to_img, code = None):
     #
     #Options: create the plate later (just create masks);
     #color can be changed here -----------------------v
-    plate = (np.ones(out_shape)[:,:,np.newaxis] * (1.,0.,0.) * ( 1 - text_mask)[:,:,np.newaxis] +
-             np.ones(out_shape)[:,:,np.newaxis] * (0.,1.,0.) * (text_mask)[:,:,np.newaxis])
-    return code, plate
+    plate = (np.ones(out_shape)[:,:,np.newaxis] * (0.5,0.,0.) * ( 1 - text_mask)[:,:,np.newaxis] +
+             np.ones(out_shape)[:,:,np.newaxis] * (0.,0.5,0.) * (text_mask)[:,:,np.newaxis])
+    radius = 1 + int(FONT_HEIGHT * 0.1 * random.random())
+
+    return code, plate, plate_mask(out_shape, radius)
     #this generates a plate
 
 def euler_matrix(yaw, pitch, roll):
@@ -208,6 +232,126 @@ def euler_matrix(yaw, pitch, roll):
     #      (1) np.linalg.matmul(x,y)
     return rotation_matrix
 
+def make_affine_transform(from_shape, to_shape, min_scale, max_scale,
+                          scale_variation=1.0,
+                          rotation_variation=1.0,
+                          translation_variation=1.0):
+    # original code;
+    out_of_bounds = False
+
+    from_size = np.array([[from_shape[1], from_shape[0]]]).T
+    to_size   = np.array([[to_shape[1], to_shape[0]]]).T
+
+    scale = random.uniform((min_scale + max_scale) * 0.5 -
+                           (max_scale - min_scale) * 0.5 * scale_variation,
+                           (min_scale + max_scale) * 0.5 +
+                           (max_scale - min_scale) * 0.5 * scale_variation)
+
+    if scale > max_scale or scale < min_scale:
+        out_of_bounds = True
+
+    roll = random.uniform(-0.3, 0.3) * rotation_variation
+    pitch = random.uniform(-0.2, 0.2) * rotation_variation
+    yaw = random.uniform(-1.2, 1.2) * rotation_variation
+
+    M = euler_matrix(yaw=yaw, pitch=pitch, roll=roll)
+    M_xy = M[:2,:2]
+    h,w = from_shape
+
+    corners = np.matrix([[-w, +w, -w, +w],
+                         [-h, -h, +h, -h]]) * 0.5
+    skewed_size = np.array(np.max(M_xy * corners, axis=1) - np.min(M_xy * corners, axis=1))
+
+    scale *= np.min(to_size / skewed_size)
+    trans = (np.random.random((2,1)) - 0.5) * translation_variation
+    trans = ((2.0 * trans) ** 5.0) / 2.0
+    if np.any(trans < -0.5) or np.any(trans > 0.5):
+        out_of_bounds = True
+    trans = (to_size - skewed_size * scale) * trans
+
+    center_to = to_size / 2.
+    center_from = from_size / 2.
+
+    M = euler_matrix(yaw, pitch, roll)[:2, :2]
+    M *= scale
+    M = np.hstack([M, trans + center_to - M * center_from])
+    #this generates an affine transformation
+    return M, out_of_bounds
+
+
+def generate_bg(bg_resize=True):
+    files = glob.glob("/usr/share/backgrounds/*/*.jpg")
+    # random.choice(files)
+    # print(random.choice(files))
+    found = False
+    while not found:
+        fname = random.choice(files)
+        print(fname)
+        bg = cv2.imread(fname) / 255.#, cv2.CV_LOAD_IMAGE_GRAYSCALE) / 255.
+        if (bg.shape[1] >= OUTPUT_SHAPE[1] and
+            bg.shape[0] >= OUTPUT_SHAPE[0]):
+            found = True
+
+
+    #print(files)
+    # while not found:
+    #     fname = "bgs/{:08d}.jpg".format(random.randint(0, num_bg_images - 1))
+    #     bg = cv2.imread(fname, cv2.CV_LOAD_IMAGE_GRAYSCALE) / 255.
+    #     if (bg.shape[1] >= OUTPUT_SHAPE[1] and
+    #         bg.shape[0] >= OUTPUT_SHAPE[0]):
+    #         found = True
+    if bg_resize:
+        x_shape = np.random.randint(OUTPUT_SHAPE[1], bg.shape[1])
+        y_shape = np.random.randint(OUTPUT_SHAPE[0], bg.shape[0])
+        resize(image=bg, output_shape=(y_shape, x_shape), order=3)
+    x = random.randint(0, bg.shape[1] - OUTPUT_SHAPE[1])
+    y = random.randint(0, bg.shape[0] - OUTPUT_SHAPE[0])
+    bg = bg[y:y + OUTPUT_SHAPE[0], x:x + OUTPUT_SHAPE[1]]
+
+    return bg
+
+def generate_proposal(char_ims):
+    bg = generate_bg()
+    out_of_bounds = False
+    code, plate, plate_mask = generate_plate(char_ims)
+    # M, out_of_bounds = make_affine_transform(
+    #                         from_shape=plate.shape[0:2],
+    #                         to_shape=bg.shape[0:2],
+    #                         min_scale=0.6,
+    #                         max_scale=0.875,
+    #                         rotation_variation=1.0,
+    #                         scale_variation=1.5,
+    #                         translation_variation=1.2)
+    # print(out_of_bounds)
+    # print(M.shape)
+    affine = AffineTransform(rotation=-0.2, shear=0.4, scale=(0.5,0.5), translation=(20,20))
+    region = np.array([ [ 0, 0,              plate.shape[1], plate.shape[1] ],
+                        [ 0, plate.shape[0],              0, plate.shape[0] ],
+                        [ 1, 1,                           1,             1] ])
+    #print(plate.shape)
+    #print("affine transformation:\n", np.matmul(affine.params[0:2,:], region))
+    #
+    points = np.matmul(affine.params[0:2,:], region)
+    if np.min(points) < 0:
+        #At least one of the points of the rectangle is out of bounds
+        out_of_bounds = True
+        #calculate the area of the plate out of bounds?
+        # print(np.linalg.norm(points[:,0] - points[:,1]) * np.linalg.norm(points[:,0] - points[:,2]))
+        # print("area     = ", np.linalg.norm(points[:,0] - points[:,1]) * np.linalg.norm(points[:,0] - points[:,2]))
+        # print("original = ", np.prod(plate.shape))
+        # for x in points.T:
+        #     print(x)
+
+    plate      = cv2.warpAffine(plate,      affine.params[0:2,:], (bg.shape[1], bg.shape[0]))
+    plate_mask = cv2.warpAffine(plate_mask, affine.params[0:2,:], (bg.shape[1], bg.shape[0]))
+    plate_mask = plate_mask[:,:,np.newaxis]
+
+    out = plate * plate_mask + (1. - plate_mask) * bg
+    out += np.random.normal(scale=0.001, size=out.shape)
+    out = np.clip(out, 0., 1.)
+    return out, code
+
+
 def main():
     char_ims = dict(make_character_images(FONT_HEIGHT))
     print(char_ims.keys())
@@ -221,6 +365,9 @@ def main():
     print(np.matmul(euler_matrix(np.pi,0,0.), np.array([1.,0.,0.])))
     print(generate_plate_alt())
     #
+    print(make_affine_transform((500,200), (300,300), 0.5, 1.5))
+    print(generate_bg())
+    #print(generate_proposal(char_ims))
     exit(0)
 
 if __name__ == '__main__':
