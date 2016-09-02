@@ -1,13 +1,16 @@
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, date
+
+import calendar
 
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib as mpl
 
 from data_utils import get_CIFAR10_data
+
 
 import seaborn as sns
 sns.set_style("darkgrid")
@@ -76,6 +79,26 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
                              shape=kernel_shape,
                              initializer=tf.contrib.layers.xavier_initializer_conv2d())
     bias = tf.get_variable("b", shape=bias_shape, initializer=tf.constant_initializer(0.))
+
+    if name != "conv_1":
+      a_s = np.random.binomial(1, p=0.8, size=kernel_shape[0:3])
+      #np.random.randint(low=0, high=2, size=kernel_shape[0:3])
+      print(name,"\n",a_s[:,:,0])
+      a_s = a_s[:,:,:,np.newaxis]
+
+      sub = tf.constant(a_s, dtype=tf.float32)
+      kernel = kernel * sub
+    else:
+      a_s = np.array([[0,0,1,0,0],
+                      [0,1,1,1,0],
+                      [1,1,1,1,1],
+                      [0,1,1,1,0],
+                      [0,0,1,0,0]])
+      print(name,"\n", a_s)
+      a_s = a_s[:,:,np.newaxis,np.newaxis]
+      sub = tf.constant(a_s, dtype=tf.float32)
+      kernel = kernel * sub
+
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #variable_summaries(bias, bias.name)
@@ -105,9 +128,9 @@ def fcl_relu(layer_in, output_size, name):
 NUM_CLASSES = 10
 
 def inference(images, classes = NUM_CLASSES):
-  layer = conv_relu(images, [3,3,3,64], [64], "conv_1")
-  layer = conv_relu(layer,  [3,3,64,64], [64], "conv_2")
-  layer = conv_relu(layer,  [3,3,64,128], [128], "conv_3")
+  layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
+  layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
+  layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
@@ -137,7 +160,7 @@ def loss(logits, labels):
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.005
+INITIAL_LEARNING_RATE = 0.025
 LEARNING_RATE_DECAY_FACTOR = 0.90
 BATCH_SIZE = 256
 MAX_STEPS = 100000
@@ -218,10 +241,14 @@ def main():
         log_device_placement=False))
   sess.run(init)
 
-  train_dir = "cifar10_results"
+  #today = date.today()
+  current_time = datetime.now()
+  train_dir = "cifar10_results/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  print("Writing summary data to :  ",train_dir)
   summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
 
   print("Starting Training.")
+  print("Training for %d batches (of size %d)" % (MAX_STEPS, BATCH_SIZE))
   for step in range(MAX_STEPS):
     num_train = data['X_train'].shape[0]
     if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
