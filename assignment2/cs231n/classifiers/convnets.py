@@ -88,7 +88,7 @@ class ConvNet(object):
 
         #assuming only one pooling layer
         #then a fully connected layer
-        self.params['W3'] = np.random.normal(0, self.weight_scale, (num_filters[1] * maxpool_size[1] * maxpool_size[2],hidden_dim))
+        self.params['W3'] = np.random.normal(0, self.weight_scale, (num_filters[1] * maxpool_size[1] * maxpool_size[2], hidden_dim))
         self.params['b3'] = np.random.normal(0, self.weight_scale, hidden_dim)
 
         #fully connect layer to output
@@ -301,6 +301,99 @@ class ConvNet_dropout(object):
         grads['W2'] += self.reg * self.params['W2']
         grads['W3'] += self.reg * self.params['W3']
         grads['W4'] += self.reg * self.params['W4']
+
+        return loss, grads
+
+
+#NOTE: no pooling
+# this can be made more complete by adding pooling, batchnorm, dropout
+# behaviour;
+#        model = initialize_model(input_dim=(3,32,32))
+#        model.add_conv_layer(shape=[64,3,3])
+#        model.add_pool_layer(pool_parameter={stride='1', pool=[2,2]})
+#        model.add_fc_layer(hidden_size=(100))
+#  OR
+#        model = ConvGENERAL(input_dim=..., blocks=[type_list], shape=[list], ...)
+class ConvNet_general(object):
+    def __init__(self, input_dim=(3,32,32), num_filters=[32,32], filter_size=[7,7],
+                 hidden_dim=100, num_classes=10, weight_scale=1e-3, reg=0.0, dropout=0,
+                 dtype=np.float32, seed=None):
+        self.params = {}
+        self.reg = reg
+        self.dtype = dtype
+        self.D     = input_dim
+        num_colors = self.D[0]
+        height     = self.D[1]
+        width      = self.D[2]
+        self.H     = hidden_dim
+        self.C     = num_classes
+
+        self.use_dropout = dropout > 0
+
+        self.dropout_param = {}
+        if self.use_dropout:
+            self.dropout_param = {'mode': 'train', 'p': dropout}
+            if seed is not None:
+                self.dropout_param['seed'] = seed
+
+        self.weight_scale = weight_scale
+        self.filter_size  = filter_size
+        self.num_filters  = num_filters
+        self.conv_params = {}
+        assert len(num_filters) == len(filter_size)
+        for idx, number in enumerate(num_filters):
+            size = self.filter_size[idx]
+            if idx == 0:
+                self.params[('W',idx)] = np.random.normal(0,self.weight_scale, (number, num_colors, size, size))
+                self.conv_params[idx]  = {'stride': 1, 'pad': (size - 1) // 2}
+            else:
+                self.params[('W',idx)] = np.random.normal(0,self.weight_scale, (number, num_filters[idx-1], size, size))
+                self.conv_params[idx]  = {'stride': 1, 'pad': (size - 1) // 2}
+            self.params[('b',idx)] = np.zeros(shape=(number))
+
+        self.params[('W', len(num_filters))] = np.random.normal(0, self.weight_scale, (num_filters[-1] * height * width, hidden_dim))
+        self.params[('b', len(num_filters))] = np.zeros(shape=(hidden_dim))
+
+        #fully connect layer to output
+        self.params[('W', len(num_filters)+1)] = np.random.normal(0, self.weight_scale, (hidden_dim, num_classes))
+        self.params[('b', len(num_filters)+1)] = np.zeros(shape=(num_classes))
+
+        for k, v in self.params.items():
+            self.params[k] = v.astype(dtype)
+
+    def loss(self, X, y=None):
+        X = X.astype(self.dtype)
+        mode = 'test' if y is None else 'train'
+
+        scores = X
+        _cache_layer = {}
+        for layer in range(len(self.num_filters)):
+            W = self.params[('W', layer)]
+            b = self.params[('b', layer)]
+            scores, _cache_layer[layer] = conv_relu_forward(scores, W, b, self.conv_params[layer])
+        scores, _cache_layer[len(self.num_filters)] = affine_relu_forward(scores,
+                                                                     self.params[('W', len(self.num_filters))],
+                                                                     self.params[('b', len(self.num_filters))])
+        scores, _cache_layer[len(self.num_filters) + 1] = affine_forward(scores,
+                                                                    self.params[('W', len(self.num_filters) + 1)],
+                                                                    self.params[('b', len(self.num_filters) + 1)])
+        if mode == 'test':
+            return scores
+
+        loss, grads = 0.0, {}
+        loss, softmax_dx = softmax_loss(scores, y)
+        #backpropagation through the softmax loss
+
+        dLayer, grads[('W', len(self.num_filters) + 1)], grads[('b', len(self.num_filters)+1)] = affine_backward(softmax_dx,  _cache_layer[len(self.num_filters) + 1])
+        #backpropagation thorugh affine transformation (layer from FC to n-classes)
+
+        dLayer, grads[('W', len(self.num_filters))],     grads[('b', len(self.num_filters))]   = affine_relu_backward(dLayer, _cache_layer[len(self.num_filters)])
+        #backpropagation through affine transformatoin with relu (convnet out put to FC vector)
+
+        for layer in reversed(list(range(len(self.num_filters)))):
+            dLayer, grads[('W', layer)],            grads[('b', layer)]  = conv_relu_backward(dLayer, _cache_layer[layer])
+            loss += 0.5 * self.reg * (np.sum(self.params[('W', layer)] * self.params[('W', layer)]))
+            grads[('W', layer)] += self.reg * self.params[('W', layer)]
 
         return loss, grads
 
