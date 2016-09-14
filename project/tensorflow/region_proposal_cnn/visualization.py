@@ -178,5 +178,4 @@ if __name__ == '__main__':
     img, code = generate_proposal(image)
     plt.imshow(img)
     plt.show()
-    exit(0)
     main()

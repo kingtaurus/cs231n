@@ -89,13 +89,15 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
     bias = tf.get_variable("b", shape=bias_shape, initializer=tf.constant_initializer(0.))
 
     if name != "conv_1":
-      a_s = np.random.binomial(1, p=0.8, size=kernel_shape[0:3])
-      #np.random.randint(low=0, high=2, size=kernel_shape[0:3])
-      print(name,"\n",a_s[:,:,0])
-      a_s = a_s[:,:,:,np.newaxis]
+      # a_s = np.random.binomial(1, p=0.8, size=kernel_shape[0:3])
+      # #np.random.randint(low=0, high=2, size=kernel_shape[0:3])
+      # print(name,"\n",a_s[:,:,0])
+      # a_s = a_s[:,:,:,np.newaxis]
 
-      sub = tf.constant(a_s, dtype=tf.float32)
-      kernel = kernel * sub
+      # sub = tf.constant(a_s, dtype=tf.float32)
+      # kernel = kernel * sub
+      #Above is similar to drop connect(?)
+      print("Not altering the 'kernels' for later layers")
     else:
       a_s = np.array([[0,0,1,0,0],
                       [0,1,1,1,0],
@@ -116,7 +118,7 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
   return layer
 
 def fcl_relu(layer_in, output_size, name,
-             regularizer_weight=None,
+             regularizer_weight=None, keep_prob = None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
     dim = np.prod(layer_in.get_shape().as_list()[1:])
@@ -127,7 +129,10 @@ def fcl_relu(layer_in, output_size, name,
     bias = tf.get_variable("b_fcl",
                            shape=[output_size],
                            initializer=tf.constant_initializer(0.))
+    if keep_prob is None:
+      keep_prob = 1.
     layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name + "_activation")
+    layer = tf.nn.dropout(layer, keep_prob)
     variable_summaries(weights, weights.name)
     #variable_summaries(bias, bias.name)
     activation_summaries(layer, layer.name)
@@ -149,19 +154,22 @@ def inference(images,
     layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
     layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
     layer = conv_relu(layer,  [5,5,64,64], [64], "conv_3")
-    # layer = conv_relu(layer,  [5,5,128,128], [128], "conv_4")
+    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = fcl_relu(layer, 128, "fcl_1")
+    layer = fcl_relu(layer, 64, "fcl_1", keep_prob=keep_prob)
 
     with tf.variable_scope('pre_softmax_linear') as scope:
       weights = tf.get_variable('weights',
-                                shape=[128, classes],
+                                shape=[64, classes],
                                 initializer=tf.contrib.layers.xavier_initializer())
       biases = tf.get_variable('biases',
                                shape=[classes],
                                initializer=tf.constant_initializer(0.))
       pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
+      if keep_prob is None:
+        keep_prob = 1.
+      pre_softmax_linear = tf.nn.dropout(pre_softmax_linear, keep_prob)
       variable_summaries(weights, weights.name)
       #variable_summaries(biases, biases.name)
       #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
@@ -183,7 +191,7 @@ def loss(logits, labels):
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.1
+INITIAL_LEARNING_RATE = 0.01
 LEARNING_RATE_DECAY_FACTOR = 0.95
 BATCH_SIZE = 256
 MAX_STEPS = 100000
@@ -201,7 +209,7 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   tf.scalar_summary('learning_rate', lr)
 
   with tf.control_dependencies([total_loss]):
-    opt = tf.train.GradientDescentOptimizer(lr)
+    opt = tf.train.MomentumOptimizer(lr, momentum=0.95)
     grads = opt.compute_gradients(total_loss)
 
   # #apply the gradients
@@ -325,6 +333,7 @@ def main():
         img = tf.expand_dims(img, 0)
         confusion_summary = tf.image_summary('confusion_matrix', img)
         summary_writer.add_summary(confusion_summary.eval(session=sess), step)
+        plt.close()
 
         histogram_summary_out = sess.run(acc_histogram_summary, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
         summary_writer.add_summary(histogram_summary_out, step)
