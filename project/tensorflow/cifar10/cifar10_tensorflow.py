@@ -7,9 +7,10 @@ from datetime import datetime, date
 
 import calendar
 
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib as mpl
 
 from data_utils import get_CIFAR10_data
 
