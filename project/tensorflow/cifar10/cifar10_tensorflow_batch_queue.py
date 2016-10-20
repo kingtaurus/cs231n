@@ -7,7 +7,7 @@ import tarfile
 
 from datetime import datetime
 import time
-import urllib
+import urllib.request
 
 import numpy as np
 
