@@ -1,3 +1,4 @@
+import io
 
 import gzip
 import os
@@ -5,23 +6,61 @@ import re
 import sys
 import tarfile
 
-from datetime import datetime
+from datetime import datetime, date
 import time
 import urllib.request
 
+import calendar
+
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 
 import tensorflow as tf
 from tensorflow.models.image.cifar10 import cifar10_input
 
-NUM_CLASSES = 10
+import seaborn as sns
+sns.set_style("darkgrid")
+plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
+plt.rcParams['image.interpolation'] = 'nearest'
+plt.rcParams['image.cmap'] = 'gray'
+
+from sklearn.metrics import confusion_matrix
+classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+
+# plt.get_cmap('gray')
+def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=None):
+    if labels is None:
+        labels = list(range(len(cm)))
+    fig = plt.figure()
+    plt_img = plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    fig.colorbar(plt_img)
+    plt.title(title)
+    tick_marks = np.arange(len(labels))
+    plt.xticks(tick_marks, labels, rotation=45)
+    plt.yticks(tick_marks, labels)
+    plt.grid(b='off')
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    #plt.colorbar()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    return buf
+
 IMAGE_SIZE = 32
+NUM_CLASSES = 10
+BATCH_SIZE = 256
+
+LOSSES_COLLECTION  = 'regularizer_losses'
+DEFAULT_REG_WEIGHT =  1e-2
+
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
-
 DATA_URL = 'http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz'
 
-BATCH_SIZE = 256
 
 def maybe_download_and_extract(data_dir):
   """Download and extract the tarball from Alex's website."""
@@ -198,13 +237,13 @@ def inference(images):
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
   # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-  layer = fcl_relu(layer, 32, "fcl_1")
+  layer = fcl_relu(layer, 64, "fcl_1")
 
   with tf.variable_scope('pre_softmax_linear') as scope:
     weights = tf.get_variable('weights',
-                              shape=[32, NUM_CLASSES],
+                              shape=[64, NUM_CLASSES],
                               initializer=tf.contrib.layers.xavier_initializer())
-    biases = tf.get_variable('biases', 
+    biases = tf.get_variable('biases',
                              shape=[NUM_CLASSES],
                              initializer=tf.constant_initializer(0.))
     pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
@@ -212,6 +251,9 @@ def inference(images):
     #variable_summaries(biases, biases.name)
     #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
   return pre_softmax_linear
+
+def predict(logits):
+  return tf.argmax(logits, dimension=1)
 
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
@@ -225,6 +267,7 @@ def loss(logits, labels):
 INITIAL_LEARNING_RATE = 0.005
 LEARNING_RATE_DECAY_FACTOR = 0.95
 NUM_EPOCHS_PER_DECAY = 5
+MAX_STEPS = 100000
 
 def train(total_loss, global_step, batch_size=BATCH_SIZE):
   number_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / batch_size
@@ -254,24 +297,23 @@ def train(total_loss, global_step, batch_size=BATCH_SIZE):
   #   train_op = tf.no_op(name="train")
 
   opt = tf.train.GradientDescentOptimizer(lr).minimize(total_loss, global_step=global_step)
-  
   # grads = opt.compute_gradients(total_loss)
 
   return opt
 
-
 def main():
-  print("Hello World!;")
+  print("Loading Data (downloading if archive hasn't been downloaded already);")
   data_dir = "cifar10_images"
-  train_dir = "cifar10_train_dir"
+  train_dir = "cifar10_results/batch/"
   maybe_download_and_extract(data_dir=data_dir)
   if tf.gfile.Exists(train_dir):
-      tf.gfile.DeleteRecursively(train_dir)
+    tf.gfile.DeleteRecursively(train_dir)
   tf.gfile.MakeDirs(train_dir)
   images, labels = read_cifar10(data_dir=data_dir, image_size=IMAGE_SIZE, batch_size=BATCH_SIZE)
   #print(images,labels)
+  #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
-
+  #MODEL construction
   logits = inference(images)
   loss_op = loss(logits, labels)
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(labels, tf.int64)), tf.float32))
@@ -291,7 +333,6 @@ def main():
 
   summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
 
-  MAX_STEPS = 1000000
   nbatches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
   for step in range(MAX_STEPS):
     start_time = time.time()
