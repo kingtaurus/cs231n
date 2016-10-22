@@ -1,9 +1,14 @@
 import io
 
+import gzip
 import os
+import re
 import sys
-import time
+import tarfile
+
 from datetime import datetime, date
+import time
+import urllib.request
 
 import calendar
 
@@ -12,20 +17,17 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+import tensorflow as tf
 from data_utils import get_CIFAR10_data
 
 import seaborn as sns
 sns.set_style("darkgrid")
-
 plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
 from sklearn.metrics import confusion_matrix
-
 classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-
-import tensorflow as tf
 
 # plt.get_cmap('gray')
 def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=None):
@@ -48,6 +50,14 @@ def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, label
     buf.seek(0)
     return buf
 
+IMAGE_SIZE = 32
+NUM_CLASSES = 10
+BATCH_SIZE = 256
+
+LOSSES_COLLECTION  = 'regularizer_losses'
+DEFAULT_REG_WEIGHT =  1e-2
+
+
 def activation_summaries(activation, name):
   with tf.name_scope("activation_summaries"):
     mean = tf.reduce_mean(activation)
@@ -68,9 +78,6 @@ def variable_summaries(variable, name):
     tf.scalar_summary('stddev/' + name, stddev)
     tf.scalar_summary('max/' + name, tf.reduce_max(variable))
     tf.scalar_summary('min/' + name, tf.reduce_min(variable))
-
-LOSSES_COLLECTION  = 'regularizer_losses'
-DEFAULT_REG_WEIGHT =  1e-2
 
 #reg_placeholder = tf.placeholder(dtype=tf.float32, shape=[1])
 ## may want to add this to the inputs for rcl (and inference methods)
@@ -143,8 +150,6 @@ def fcl_relu(layer_in, output_size, name,
     tf.add_to_collection(loss_collection, regularizer_loss)
   return layer
 
-NUM_CLASSES = 10
-
 def inference(images,
               classes = NUM_CLASSES,
               keep_prob=None,
@@ -194,11 +199,12 @@ def loss(logits, labels):
 
 INITIAL_LEARNING_RATE = 0.01
 LEARNING_RATE_DECAY_FACTOR = 0.95
-BATCH_SIZE = 256
+NUM_EPOCHS_PER_DECAY = 15
 MAX_STEPS = 100000
 
-DECAY_STEPS = 15 * BATCH_SIZE
-
+DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
+#150 is roughly the number of batches per epoch
+#40,000/256 ~ 150
 
 def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   lr = tf.train.exponential_decay(learning_rate,
@@ -209,11 +215,15 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
 
   tf.scalar_summary('learning_rate', lr)
 
+  #compute gradient step
   with tf.control_dependencies([total_loss]):
     opt = tf.train.MomentumOptimizer(lr, momentum=0.95)
     grads = opt.compute_gradients(total_loss)
 
-  # #apply the gradients
+  #if we wanted to clip the gradients
+  #would apply the operation here
+
+  #apply the gradients
   apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
   for grad, var in grads:
@@ -356,11 +366,13 @@ def main():
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
       saver.save(sess, checkpoint_path, global_step=step)
+
+  return 0
+
   # rng_state = np.random.get_state()
   # X_train = np.random.permutation(X_train)
   # np.random.set_state(rng_state)
   # y_train = np.random.permutation(y_train)
 
-
 if __name__ == '__main__':
-    main()
+  main()
