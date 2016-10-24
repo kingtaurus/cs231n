@@ -29,6 +29,11 @@ import utils.common as common
 
 import glob
 
+import logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+
 OUTPUT_SHAPE = (64,128)
 FONT_HEIGHT = 32
 FONT_PATH   = "UKNumberPlate.ttf"
@@ -40,7 +45,17 @@ ld_code = { 'L' : common.LETTERS,
             'S' : ' ',
             'X' : 'd',
             'Q' : 'q',
-            'W' : 'w'}
+            'W' : 'w',
+            'M' : 'm' }
+
+''' ld_code: L <--> LETTERS;
+             D <--> DIGITS;
+             S <--> Space;
+             X <--> Double Space;
+             Q <--> Quad Space;
+             W <--> Wide Space;
+             M <--> Micro Space; (?)
+'''
 
 def make_character_images(output_height):
     font_size = output_height * 4
@@ -65,7 +80,7 @@ def make_character_images(output_height):
     draw = ImageDraw.Draw(im)
     draw.text((0, 0), c, (255, 255, 255), font=font)
     scale = float(output_height) / height
-    im = im.resize((int(width * scale * 2.0), output_height), Image.ANTIALIAS)
+    im = im.resize((int(width * 2.0 * scale), output_height), Image.ANTIALIAS)
     yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
 
     #wide space
@@ -75,7 +90,7 @@ def make_character_images(output_height):
     draw = ImageDraw.Draw(im)
     draw.text((0, 0), c, (255, 255, 255), font=font)
     scale = float(output_height) / height
-    im = im.resize((int(width * scale * 1.5), output_height), Image.ANTIALIAS)
+    im = im.resize((int(width * 1.5 * scale), output_height), Image.ANTIALIAS)
     yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
 
     #quad space
@@ -85,7 +100,17 @@ def make_character_images(output_height):
     draw = ImageDraw.Draw(im)
     draw.text((0, 0), c, (255, 255, 255), font=font)
     scale = float(output_height) / height
-    im = im.resize((int(width * scale * 4.0), output_height), Image.ANTIALIAS)
+    im = im.resize((int(width * 4.0* scale), output_height), Image.ANTIALIAS)
+    yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
+
+    #micro space (0.5)
+    wide_space = "m"
+    width = font.getsize(' ')[0]
+    im = Image.new("RGBA", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.text((0, 0), c, (255, 255, 255), font=font)
+    scale = float(output_height) / height
+    im = im.resize((int(width * 0.5 * scale), output_height), Image.ANTIALIAS)
     yield wide_space, np.array(im)[:, :, 0].astype(np.float32) / 255.
 
     #CAN add extra characters after the fact here
@@ -250,9 +275,9 @@ def make_affine_transform(from_shape, to_shape, min_scale, max_scale,
     if scale > max_scale or scale < min_scale:
         out_of_bounds = True
 
-    roll = random.uniform(-0.3, 0.3) * rotation_variation
+    roll  = random.uniform(-0.3, 0.3) * rotation_variation
     pitch = random.uniform(-0.2, 0.2) * rotation_variation
-    yaw = random.uniform(-1.2, 1.2) * rotation_variation
+    yaw   = random.usingform(-1.2, 1.2) * rotation_variation
 
     M = euler_matrix(yaw=yaw, pitch=pitch, roll=roll)
     M_xy = M[:2,:2]
@@ -286,7 +311,6 @@ def generate_bg(bg_resize=True):
     found = False
     while not found:
         fname = random.choice(files)
-        print(fname)
         bg = cv2.imread(fname) / 255.#, cv2.CV_LOAD_IMAGE_GRAYSCALE) / 255.
         if (bg.shape[1] >= OUTPUT_SHAPE[1] and
             bg.shape[0] >= OUTPUT_SHAPE[0]):
@@ -308,10 +332,10 @@ def generate_bg(bg_resize=True):
     y = random.randint(0, bg.shape[0] - OUTPUT_SHAPE[0])
     bg = bg[y:y + OUTPUT_SHAPE[0], x:x + OUTPUT_SHAPE[1]]
 
-    return bg
+    return bg, fname
 
 def generate_proposal(char_ims):
-    bg = generate_bg()
+    bg, background_name = generate_bg()
     out_of_bounds = False
     code, plate, plate_mask = generate_plate(char_ims)
     # M, out_of_bounds = make_affine_transform(
@@ -353,13 +377,19 @@ def generate_proposal(char_ims):
 
 
 def main():
+    log.info(" Creating diction of character images;")
     char_ims = dict(make_character_images(FONT_HEIGHT))
-    print(char_ims.keys())
+    #print(char_ims.keys())
+    log.info(" Characters : " + str(char_ims.keys()))
+    log.info(" Quick Test of License Plate Generation (10 of them)")
     for i in range(10):
-        print(generate_code())
-    print(generate_code("LLDDXLLL"))
-    print(generate_code("LLDDQLLL"))
-    print(generate_code("LLDDWLLL"))
+        log.info(" Licence Plate " + str(i) + " : " + generate_code())
+
+    log.info(" Licence Plate with CODE LLDDXLLL : " + generate_code("LLDDXLLL"))
+    log.info(" Licence Plate with CODE LLDDXLLL : " + generate_code("LLDDXLLL"))
+    log.info(" Licence Plate with CODE LLDDQLLL : " + generate_code("LLDDQLLL"))
+    log.info(" Licence Plate with CODE LLDDWLLL : " + generate_code("LLDDWLLL"))
+    log.info(" Licence Plate with CODE LLDDWLLL : " + generate_code("LLDDMLLL"))
     generate_plate(char_ims)
     print(euler_matrix(1.,1.,1.))
     print(np.matmul(euler_matrix(np.pi,0,0.), np.array([1.,0.,0.])))
