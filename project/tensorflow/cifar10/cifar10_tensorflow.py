@@ -129,6 +129,7 @@ def fcl_relu(layer_in, output_size, name,
              regularizer_weight=None, keep_prob = None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
+    #batch_size = layer_in.get_shape().as_list()[0]
     dim = np.prod(layer_in.get_shape().as_list()[1:])
     reshape = tf.reshape(layer_in, [-1, dim])
     weights = tf.get_variable("W_fcl",
@@ -159,8 +160,8 @@ def inference(images,
   with tf.variable_scope(model_name) as model_scope:
     layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
     layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
-    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_3")
-    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
+    layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
+    # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
     layer = fcl_relu(layer, 64, "fcl_1", keep_prob=keep_prob)
@@ -240,6 +241,8 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   return train_op
 
 def main():
+  print("Loading Data;")
+
   data = get_CIFAR10_data()
   for k, v in data.items():
       print('%s: '%(k), v.shape)
@@ -256,7 +259,7 @@ def main():
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
   #MODEL construction
-  logits  = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
