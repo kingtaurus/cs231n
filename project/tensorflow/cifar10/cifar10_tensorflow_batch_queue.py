@@ -213,7 +213,9 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
     # layer = tf.nn.lrn(layer, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm')
   return layer
 
-def fcl_relu(layer_in, output_size, name):
+def fcl_relu(layer_in, output_size, name,
+             regularizer_weight=None, keep_prob = None,
+             loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
     batch_size = layer_in.get_shape().as_list()[0]
     reshape = tf.reshape(layer_in, [batch_size, -1])
@@ -230,26 +232,35 @@ def fcl_relu(layer_in, output_size, name):
     activation_summaries(layer, layer.name)
   return layer
 
-def inference(images):
-  layer = conv_relu(images, [3,3,3,64], [64], "conv_1")
-  layer = conv_relu(layer,  [3,3,64,64], [64], "conv_2")
-  layer = conv_relu(layer,  [3,3,64,128], [128], "conv_3")
-  # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
-  # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
-  # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-  layer = fcl_relu(layer, 64, "fcl_1")
+def inference(images,
+              classes = NUM_CLASSES,
+              keep_prob=None,
+              regularizer_weight=None,
+              loss_collection=LOSSES_COLLECTION,
+              model_name="model_1"):
+  with tf.variable_scope(model_name) as model_scope:
+    layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
+    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
+    layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
+    # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
+    # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
+    # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
+    layer = fcl_relu(layer, 64, "fcl_1", keep_prob=keep_prob)
 
-  with tf.variable_scope('pre_softmax_linear') as scope:
-    weights = tf.get_variable('weights',
-                              shape=[64, NUM_CLASSES],
-                              initializer=tf.contrib.layers.xavier_initializer())
-    biases = tf.get_variable('biases',
-                             shape=[NUM_CLASSES],
-                             initializer=tf.constant_initializer(0.))
-    pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
-    variable_summaries(weights, weights.name)
-    #variable_summaries(biases, biases.name)
-    #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
+    with tf.variable_scope('pre_softmax_linear') as scope:
+      weights = tf.get_variable('weights',
+                                shape=[64, classes],
+                                initializer=tf.contrib.layers.xavier_initializer())
+      biases = tf.get_variable('biases',
+                               shape=[classes],
+                               initializer=tf.constant_initializer(0.))
+      pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
+      if keep_prob is None:
+        keep_prob = 1.
+      pre_softmax_linear = tf.nn.dropout(pre_softmax_linear, keep_prob)
+      variable_summaries(weights, weights.name)
+      #variable_summaries(biases, biases.name)
+      #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
   return pre_softmax_linear
 
 def predict(logits):
@@ -264,7 +275,7 @@ def loss(logits, labels):
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.005
+INITIAL_LEARNING_RATE = 0.01
 LEARNING_RATE_DECAY_FACTOR = 0.95
 NUM_EPOCHS_PER_DECAY = 5
 MAX_STEPS = 100000
@@ -303,6 +314,7 @@ def train(total_loss, global_step, batch_size=BATCH_SIZE):
 
 def main():
   print("Loading Data (downloading if archive hasn't been downloaded already);")
+
   data_dir = "cifar10_images"
   train_dir = "cifar10_results/batch/"
   maybe_download_and_extract(data_dir=data_dir)
@@ -311,6 +323,13 @@ def main():
   tf.gfile.MakeDirs(train_dir)
   images, labels = read_cifar10(data_dir=data_dir, image_size=IMAGE_SIZE, batch_size=BATCH_SIZE)
   #print(images,labels)
+
+  #PLACEHOLDER VARIABLES
+  keep_prob = tf.placeholder(dtype=tf.float32, shape=())
+  learning_rate = tf.placeholder(dtype=tf.float32, shape=())
+  regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
+  #Not used --- ^ (currently)
+
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
   #MODEL construction
@@ -319,11 +338,16 @@ def main():
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(labels, tf.int64)), tf.float32))
   train_op = train(loss_op, global_step, batch_size=BATCH_SIZE)
 
+  reg_loss = tf.reduce_sum(tf.get_collection(LOSSES_COLLECTION))
+  total_loss = loss_op + reg_loss
+
   saver = tf.train.Saver(tf.all_variables())
 
   summary_op = tf.merge_all_summaries()
-  acc_summary = tf.scalar_summary('accuracy', accuracy_op)
-  cross_entropy_loss = tf.scalar_summary('total_loss_raw', loss_op)
+  acc_summary = tf.scalar_summary('Training_accuracy (Batch)', accuracy_op)
+  cross_entropy_loss = tf.scalar_summary('loss_raw', loss_op)
+  reg_loss_summary   = tf.scalar_summary('regularization_loss', reg_loss)
+  total_loss_summary = tf.scalar_summary('total_loss', total_loss)
 
   init = tf.initialize_all_variables()
   sess = tf.Session(config=tf.ConfigProto(
@@ -331,6 +355,13 @@ def main():
   sess.run(init)
   tf.train.start_queue_runners(sess=sess)
 
+  #today = date.today()
+  current_time = datetime.now()
+  # LR_%f, INITIAL_LEARNING_RATE
+  # REG_%f, DEFAULT_REG_WEIGHT
+  # add details, relating per epoch results (and mean filtered loss etc.)
+  train_dir = "cifar10_results/LR_" + str(INITIAL_LEARNING_RATE) + "/" + "REG_" + str(DEFAULT_REG_WEIGHT) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  print("Writing summary data to :  ",train_dir)
   summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
 
   nbatches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
