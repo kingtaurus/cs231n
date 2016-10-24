@@ -103,6 +103,7 @@ def main():
     plt.figure(figsize=(10,10))
     code, img, plate_mask = generate_plate(image)
     plt.imshow(img)
+    plt.title(code)
     plt.show()
 
     #using the new code ('w') corresponds to a wide space
@@ -124,9 +125,15 @@ def main():
     plt.imshow(generate_plate(image,"VB57qWXV")[1])
     plt.show()
 
+    #using the new code ('m') corresponds to a micro space
+    plt.figure(figsize=(10,10))
+    plt.title("YC05mAGJ")
+    plt.imshow(generate_plate(image,"YC05mAGJ")[1])
+    plt.show()
+
     characters, img, plate_mask = generate_plate_alt()
     plt.figure(figsize=(10,10))
-    plt.title(characters)
+    plt.title(characters + "  (ALT);")
     plt.imshow(img)
     plt.show()
 
@@ -161,8 +168,13 @@ def main():
     #scikit-image skeletonize
     #scikit-image.transform.AffineTransform
     plt.figure(figsize = (10,10))
-    img = generate_bg()
-    plt.imshow(img)
+    for i in range(25):
+        plt.subplot(5,5,i+1)
+        img, file_name = generate_bg()
+        plt.axis('off')
+        name = os.path.basename(file_name)
+        plt.title(name, fontsize=10)
+        plt.imshow(img)
     plt.show()
 
     # plt.figure(figsize=(10,10))
