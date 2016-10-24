@@ -207,6 +207,7 @@ DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
 #150 is roughly the number of batches per epoch
 #40,000/256 ~ 150
 
+#probably should pass in a momentum parameters
 def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
