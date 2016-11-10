@@ -159,12 +159,12 @@ def inference(images,
               model_name="model_1"):
   with tf.variable_scope(model_name) as model_scope:
     layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
-    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
-    layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
+    # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
+    # layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = fcl_relu(layer, 64, "fcl_1", keep_prob=keep_prob)
+    layer = fcl_relu(layer, 128, "fcl_1", keep_prob=keep_prob)
 
     with tf.variable_scope('pre_softmax_linear') as scope:
       weights = tf.get_variable('weights',
@@ -203,12 +203,12 @@ LEARNING_RATE_DECAY_FACTOR = 0.95
 NUM_EPOCHS_PER_DECAY = 15
 MAX_STEPS = 100000
 
-DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
+DECAY_STEPS = 1000
 #150 is roughly the number of batches per epoch
 #40,000/256 ~ 150
 
 #probably should pass in a momentum parameters
-def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
+def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, optimizer=tf.train.MomentumOptimizer):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
                                   DECAY_STEPS,#number of steps required for it to decay
@@ -239,7 +239,7 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   #opt = tf.train.GradientDescentOptimizer(lr).minimize(total_loss, global_step=global_step)
   # grads = opt.compute_gradients(total_loss)
 
-  return train_op
+  return train_op, lr
 
 def main():
   print("Loading Data;")
@@ -268,7 +268,7 @@ def main():
   total_loss = loss_op + reg_loss
 
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
-  train_op = train(loss_op, global_step, learning_rate=INITIAL_LEARNING_RATE)
+  train_op, learning_rate_op = train(loss_op, global_step, learning_rate=learning_rate)
   saver = tf.train.Saver(tf.all_variables())
 
   #Summary operation
@@ -309,9 +309,20 @@ def main():
   acc_list = []
   valid_acc_list = []
 
+  test_variable = tf.Variable(INITIAL_LEARNING_RATE, trainable=False, name="test_learning_rate")
+  init_op = tf.initialize_variables([test_variable])
+  sess.run(init_op)
   print("Starting Training.")
   print("Training for %d batches (of size %d); initial learning rate %f" % (MAX_STEPS, BATCH_SIZE, INITIAL_LEARNING_RATE))
   for step in range(MAX_STEPS):
+    # HOW to assign a new value;
+    # sess.run(test_variable.assign(np.random.randn()))
+    # print(sess.run(test_variable))
+    # OR
+    # print(test_variable.eval())
+    #extract out learning rate:
+    current_lr = sess.run(learning_rate_op, feed_dict={learning_rate : INITIAL_LEARNING_RATE})
+    # print(step, current_lr)
     num_train = data['X_train'].shape[0]
     if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
       print("Completed Epoch: %d (step=%d, MAX_STEPS=%d, percentage complete= %f)" % ((BATCH_SIZE * (step) // num_train ), step, MAX_STEPS, step/MAX_STEPS * 100))
@@ -320,7 +331,7 @@ def main():
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
-    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : 0.8, regularizer_weight : 0.01 }
+    feed_dict = { X_image : X_batch, y_label : y_batch, learning_rate: current_lr, keep_prob : 0.8, regularizer_weight : 0.01 }
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
@@ -362,7 +373,7 @@ def main():
       valid_acc_list.append(valid_acc)
       # Probably should change the slice size to be smaller (10 instead of 100)
       valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list[-10:])})
-      print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
+      print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc), flush=True)
       summary_writer.add_summary(valid_summary, step)
       summary_writer.add_summary(valid_accuracy_100_str, step)
 
