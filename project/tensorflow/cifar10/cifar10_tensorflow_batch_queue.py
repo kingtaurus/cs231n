@@ -381,7 +381,7 @@ def main():
       format_str = ('%s: step %d, loss = %.2f, accuracy = %.2f (%.1f examples/sec; %.3f '
                     'sec/batch)')
       print(format_str % (datetime.now(), step, loss_value, (accuracy*100),
-                           examples_per_sec, sec_per_batch))
+                           examples_per_sec, sec_per_batch), flush=True)
     if step != 0 and ((step - 1 ) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN != ((step) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN:
       print("Starting New Epoch; Epoch %d" % (((step) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN + 1))
     if step % 100 == 0:
