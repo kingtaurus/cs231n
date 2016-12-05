@@ -17,6 +17,8 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scipy import ndimage
+
 import tensorflow as tf
 from tensorflow.models.image.cifar10 import cifar10_input
 
@@ -199,6 +201,10 @@ def model(images):
 #conv1_weights = tf.Variable(tf.random_normal([5, 5, 32, 32]), name="conv1_weights")
 #alternate way of doing it
 
+def weight_decay(layer_weights, wd=0.99):
+  layer_weights = tf.mul(wd, layer_weights)
+  return layer_weights
+
 def conv_relu(layer_in, kernel_shape, bias_shape, name):
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
@@ -335,11 +341,12 @@ def main():
   #MODEL construction
   logits = inference(images)
   loss_op = loss(logits, labels)
-  accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(labels, tf.int64)), tf.float32))
-  train_op = train(loss_op, global_step, batch_size=BATCH_SIZE)
 
   reg_loss = tf.reduce_sum(tf.get_collection(LOSSES_COLLECTION))
   total_loss = loss_op + reg_loss
+
+  accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(labels, tf.int64)), tf.float32))
+  train_op = train(total_loss, global_step, batch_size=BATCH_SIZE)
 
   saver = tf.train.Saver(tf.all_variables())
 
