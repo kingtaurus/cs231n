@@ -17,6 +17,8 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scipy import ndimage
+
 import tensorflow as tf
 from data_utils import get_CIFAR10_data
 
@@ -88,6 +90,21 @@ def variable_summaries(variable, name):
 #     loss = tf.mul(weight, tf.nn.l2_loss(tensor), name='value')
 #     tf.add_to_collection(LOSSES_COLLECTION, loss)
 #     return loss
+
+
+# IDEA: construct validation network (reuses parameters)
+#       construct train network
+#       construct visualization tool
+#       construct weight reduction test
+
+#probably need to change for validation
+# so: it should be train_layer
+# validation_layer = tf.get_variable("W", resuse=True)
+
+
+def weight_decay(layer_weights, wd=0.99):
+  layer_weights = tf.mul(wd, layer_weights)
+  return layer_weights
 
 def conv_relu(layer_in, kernel_shape, bias_shape, name):
   with tf.variable_scope(name) as scope:
@@ -268,7 +285,7 @@ def main():
   total_loss = loss_op + reg_loss
 
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
-  train_op = train(loss_op, global_step, learning_rate=INITIAL_LEARNING_RATE)
+  train_op = train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE)
   saver = tf.train.Saver(tf.all_variables())
 
   #Summary operation
