@@ -22,6 +22,10 @@ from scipy import ndimage
 import tensorflow as tf
 from data_utils import get_CIFAR10_data
 
+import argparse
+from collections import namedtuple
+
+
 import seaborn as sns
 sns.set_style("darkgrid")
 plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
@@ -57,8 +61,7 @@ NUM_CLASSES = 10
 BATCH_SIZE = 512
 
 LOSSES_COLLECTION  = 'regularizer_losses'
-DEFAULT_REG_WEIGHT =  5e-2
-
+DEFAULT_REG_WEIGHT =  1e-1
 
 def activation_summaries(activation, name):
   with tf.name_scope("activation_summaries"):
@@ -251,7 +254,7 @@ def inference(images,
       regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
       tf.add_to_collection(loss_collection, regularizer_loss)
   grad_image = tf.gradients(layer[0,0], [images])
-  print(grad_image[0].get_shape)
+  print(grad_image[0].get_shape())
   return pre_softmax_linear, grad_image[0]
 
 def predict(logits):
