@@ -263,7 +263,7 @@ def predict(logits):
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits, labels, name='cross_entropy_per_example')
+      logits=logits, labels=labels, name='cross_entropy_per_example')
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
 
   # The total loss is defined as the cross entropy loss
@@ -280,11 +280,11 @@ DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
 #40,000/256 ~ 150
 
 #probably should pass in a momentum parameters
-def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
+def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_steps=DECAY_STEPS, lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
-                                  DECAY_STEPS,#number of steps required for it to decay
-                                  LEARNING_RATE_DECAY_FACTOR,
+                                  decay_steps,#number of steps required for it to decay
+                                  lr_rate_decay_factor,
                                   staircase=True)
 
   tf.summary.scalar('learning_rate', lr)
@@ -328,8 +328,6 @@ def main():
   keep_prob = tf.placeholder(dtype=tf.float32, shape=())
   learning_rate = tf.placeholder(dtype=tf.float32, shape=())
   regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
-  #Not used --- ^ (currently)
-
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
@@ -375,8 +373,13 @@ def main():
 
   #SESSION Construction
   init = tf.global_variables_initializer()
-  sess = tf.Session(config=tf.ConfigProto(
-        log_device_placement=False))
+
+  config = tf.ConfigProto()
+  # config.gpu_options.allow_growth = True
+  # config.gpu_options.per_process_gpu_memory_fraction = 0.5
+  config.log_device_placement=False
+
+  sess = tf.Session(config=config)
   sess.run(init)
 
   #today = date.today()
