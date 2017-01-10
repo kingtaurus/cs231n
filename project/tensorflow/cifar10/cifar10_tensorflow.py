@@ -270,12 +270,12 @@ def loss(logits, labels):
   return cross_entropy_mean
 
 INITIAL_LEARNING_RATE = 0.03
-LEARNING_RATE_DECAY_FACTOR = 0.95
+LEARNING_RATE_DECAY_FACTOR = 0.80
 DROPOUT_KEEPPROB = 0.9
 NUM_EPOCHS_PER_DECAY = 15
 MAX_STEPS = 100000
 
-DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
+DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 95
 #150 is roughly the number of batches per epoch
 #40,000/256 ~ 150
 
@@ -376,7 +376,9 @@ def main():
   total_loss = loss_op + reg_loss
 
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
-  train_op = train(total_loss, global_step, learning_rate=lr)
+  #print('decay_steps = ', lr_decay_time * (train_size // batch_size + 1))
+  print("Number of batch steps till lr_decay = ", lr_decay_time * ((train_size //  batch_size) + 1))
+  train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((train_size //  batch_size) + 1))
   saver = tf.train.Saver(tf.global_variables())
 
   logits_test = inference_eval_model(X_image)
@@ -421,7 +423,7 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(DROPOUT_KEEPPROB) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
   summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
@@ -432,17 +434,17 @@ def main():
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
 
   print("Starting Training.")
-  print("Training for %d batches (of size %d); initial learning rate %f" % (MAX_STEPS, BATCH_SIZE, INITIAL_LEARNING_RATE))
-  for step in range(MAX_STEPS):
+  print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
+  for step in range(max_steps):
     num_train = data['X_train'].shape[0]
-    if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
-      print("Completed Epoch: %d (step=%d, MAX_STEPS=%d, percentage complete= %f)" % ((BATCH_SIZE * (step) // num_train ), step, MAX_STEPS, step/MAX_STEPS * 100))
+    if batch_size * (step - 1) // num_train < batch_size * (step) // num_train and step > 0:
+      print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
 
-    batch_mask = np.random.choice(num_train, BATCH_SIZE)
+    batch_mask = np.random.choice(num_train, batch_size)
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
-    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : DROPOUT_KEEPPROB, regularizer_weight : reg_weight }
+    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight }
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
@@ -501,7 +503,7 @@ def main():
       summary_writer.add_summary(valid_summary, step)
       summary_writer.add_summary(valid_accuracy_100_str, step)
 
-    if (step % 500 == 0 and step > 0) or (step + 1) == MAX_STEPS:
+    if (step % 500 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
       saver.save(sess, checkpoint_path, global_step=step)
