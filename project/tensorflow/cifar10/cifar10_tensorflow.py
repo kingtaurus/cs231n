@@ -279,6 +279,32 @@ DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
 #150 is roughly the number of batches per epoch
 #40,000/256 ~ 150
 
+parser = argparse.ArgumentParser(description='CIFAR-10 Training', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--learning_rate', default=INITIAL_LEARNING_RATE,
+  type=float, nargs='?', help='Initial Learning Rate;')
+parser.add_argument('--decay_rate', default=LEARNING_RATE_DECAY_FACTOR,
+  type=float, nargs='?', help='Learning Rate Decay Factor;')#alternative %(default) in help string
+parser.add_argument('--keep_prob', default=DROPOUT_KEEPPROB, type=float, nargs='?',
+  help='Probablity to keep a neuron in the Full Connected Layers;')
+parser.add_argument('--max_steps', type=int, default=MAX_STEPS, nargs='?',
+  help='Maximum number of batches to run;')
+parser.add_argument('--lr_decay_time', type=int, default=NUM_EPOCHS_PER_DECAY, nargs='?',
+  help='Number of Epochs till LR decays;')
+parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_WEIGHT,
+  nargs='?', help='Regularization weight (l2 regularization);')
+parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
+  nargs='?', help='Batch size;')
+parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+##
+# Add device placement (0,1)?
+# Add Seed?
+##
+
+##
+# Add classwise scalars
+##
+
+
 #probably should pass in a momentum parameters
 def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_steps=DECAY_STEPS, lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
   lr = tf.train.exponential_decay(learning_rate,
@@ -314,13 +340,21 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_st
   return train_op
 
 def main():
+  #parser.print_help()
+  args = parser.parse_args()
+  print(args)
   print("Loading Data;")
 
-  lr = INITIAL_LEARNING_RATE
-  reg_weight = DEFAULT_REG_WEIGHT
-
+  lr = args.learning_rate#INITIAL_LEARNING_RATE
+  reg_weight = args.regularization_weight
+  kp = args.keep_prob
+  max_steps = args.max_steps
+  decay_rate = args.decay_rate
+  lr_decay_time = args.lr_decay_time
+  batch_size = args.batch_size
 
   data = get_CIFAR10_data()
+  train_size = len(data['y_train'])
   for k, v in data.items():
       print('%s: '%(k), v.shape)
 
