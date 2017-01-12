@@ -91,8 +91,8 @@ x_input = np.zeros(x_image.get_shape())
 grad_layer3 = tf.placeholder(tf.float32, shape=layer3.get_shape())
 grad_x_image = tf.gradients(layer3, [x_image], grad_layer3)
 
-init_op = tf.initialize_all_variables()
-sess.run(tf.initialize_all_variables())
+init_op = tf.global_variables_initializer()
+sess.run(init_op)
 
 grad_x_image_result = sess.run(grad_x_image, feed_dict={grad_layer3: array, x_image: x_input})
 #print(grad_x_image_result)
