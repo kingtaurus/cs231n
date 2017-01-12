@@ -22,6 +22,10 @@ from scipy import ndimage
 import tensorflow as tf
 from data_utils import get_CIFAR10_data
 
+import argparse
+from collections import namedtuple
+
+
 import seaborn as sns
 sns.set_style("darkgrid")
 plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
@@ -61,6 +65,7 @@ DEFAULT_REG_WEIGHT =  5e-2
 
 
 def activation_summaries(activation, name):
+  #might want to specify the activation type (since min will always be 0 for ReLU)
   with tf.name_scope("activation_summaries"):
     mean = tf.reduce_mean(activation)
     tf.summary.histogram(name + '/activations', activation)
@@ -270,28 +275,54 @@ def predict(logits):
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits, labels, name='cross_entropy_per_example')
+      logits=logits, labels=labels, name='cross_entropy_per_example')
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
 
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
 INITIAL_LEARNING_RATE = 0.03
-LEARNING_RATE_DECAY_FACTOR = 0.95
+LEARNING_RATE_DECAY_FACTOR = 0.80
 DROPOUT_KEEPPROB = 0.9
 NUM_EPOCHS_PER_DECAY = 15
 MAX_STEPS = 100000
 
-DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 150
+DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 95
 #150 is roughly the number of batches per epoch
 #40,000/256 ~ 150
 
+parser = argparse.ArgumentParser(description='CIFAR-10 Training', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--learning_rate', default=INITIAL_LEARNING_RATE,
+  type=float, nargs='?', help='Initial Learning Rate;')
+parser.add_argument('--decay_rate', default=LEARNING_RATE_DECAY_FACTOR,
+  type=float, nargs='?', help='Learning Rate Decay Factor;')#alternative %(default) in help string
+parser.add_argument('--keep_prob', default=DROPOUT_KEEPPROB, type=float, nargs='?',
+  help='Probablity to keep a neuron in the Full Connected Layers;')
+parser.add_argument('--max_steps', type=int, default=MAX_STEPS, nargs='?',
+  help='Maximum number of batches to run;')
+parser.add_argument('--lr_decay_time', type=int, default=NUM_EPOCHS_PER_DECAY, nargs='?',
+  help='Number of Epochs till LR decays;')
+parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_WEIGHT,
+  nargs='?', help='Regularization weight (l2 regularization);')
+parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
+  nargs='?', help='Batch size;')
+parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+##
+# Add device placement (0,1)?
+# Add Seed?
+##
+
+##
+# Add classwise scalars
+##
+
+
 #probably should pass in a momentum parameters
-def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
+def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_steps=DECAY_STEPS, lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
-                                  DECAY_STEPS,#number of steps required for it to decay
-                                  LEARNING_RATE_DECAY_FACTOR,
+                                  decay_steps,#number of steps required for it to decay
+                                  lr_rate_decay_factor,
                                   staircase=True)
 
   tf.summary.scalar('learning_rate', lr)
@@ -321,13 +352,21 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE):
   return train_op
 
 def main():
+  #parser.print_help()
+  args = parser.parse_args()
+  print(args)
   print("Loading Data;")
 
-  lr = INITIAL_LEARNING_RATE
-  reg_weight = DEFAULT_REG_WEIGHT
-
+  lr = args.learning_rate#INITIAL_LEARNING_RATE
+  reg_weight = args.regularization_weight
+  kp = args.keep_prob
+  max_steps = args.max_steps
+  decay_rate = args.decay_rate
+  lr_decay_time = args.lr_decay_time
+  batch_size = args.batch_size
 
   data = get_CIFAR10_data()
+  train_size = len(data['y_train'])
   for k, v in data.items():
       print('%s: '%(k), v.shape)
 
@@ -335,7 +374,6 @@ def main():
   keep_prob = tf.placeholder(dtype=tf.float32, shape=())
   learning_rate = tf.placeholder(dtype=tf.float32, shape=())
   regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
-  #Not used --- ^ (currently)
 
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
@@ -351,7 +389,9 @@ def main():
   total_loss = loss_op + reg_loss
 
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
-  train_op = train(total_loss, global_step, learning_rate=lr)
+  #print('decay_steps = ', lr_decay_time * (train_size // batch_size + 1))
+  print("Number of batch steps till lr_decay = ", lr_decay_time * ((train_size //  batch_size) + 1))
+  train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((train_size //  batch_size) + 1))
   saver = tf.train.Saver(tf.global_variables())
 
   logits_test = inference_eval_model(X_image)
@@ -382,8 +422,13 @@ def main():
 
   #SESSION Construction
   init = tf.global_variables_initializer()
-  sess = tf.Session(config=tf.ConfigProto(
-        log_device_placement=False))
+
+  config = tf.ConfigProto()
+  # config.gpu_options.allow_growth = True
+  # config.gpu_options.per_process_gpu_memory_fraction = 0.5
+  config.log_device_placement=False
+
+  sess = tf.Session(config=config)
   sess.run(init)
 
   # print("sub.shape = ", sub.get_shape())
@@ -394,7 +439,7 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(DROPOUT_KEEPPROB) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
   summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
@@ -405,18 +450,19 @@ def main():
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
 
   print("Starting Training.")
-  print("Training for %d batches (of size %d); initial learning rate %f" % (MAX_STEPS, BATCH_SIZE, lr))
-  for step in range(MAX_STEPS):
+  print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
+  for step in range(max_steps):
     num_train = data['X_train'].shape[0]
-    if BATCH_SIZE * (step - 1) // num_train < BATCH_SIZE * (step) // num_train and step > 0:
-      print("Completed Epoch: %d (step=%d, MAX_STEPS=%d, percentage complete= %f)" % ((BATCH_SIZE * (step) // num_train ), step, MAX_STEPS, step/MAX_STEPS * 100))
+    if batch_size * (step - 1) // num_train < batch_size * (step) // num_train and step > 0:
+      print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
+
       sess.run([wd_0])
 
-    batch_mask = np.random.choice(num_train, BATCH_SIZE)
+    batch_mask = np.random.choice(num_train, batch_size)
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
-    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : DROPOUT_KEEPPROB, regularizer_weight : reg_weight }
+    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight }
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
@@ -470,7 +516,7 @@ def main():
       summary_writer.add_summary(valid_summary, step)
       summary_writer.add_summary(valid_accuracy_100_str, step)
 
-    if (step % 500 == 0 and step > 0) or (step + 1) == MAX_STEPS:
+    if (step % 500 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
       saver.save(sess, checkpoint_path, global_step=step)
