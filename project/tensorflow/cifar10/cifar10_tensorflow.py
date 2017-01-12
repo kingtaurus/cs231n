@@ -64,6 +64,7 @@ LOSSES_COLLECTION  = 'regularizer_losses'
 DEFAULT_REG_WEIGHT =  1e-1
 
 def activation_summaries(activation, name):
+  #might want to specify the activation type (since min will always be 0 for ReLU)
   with tf.name_scope("activation_summaries"):
     mean = tf.reduce_mean(activation)
     tf.summary.histogram(name + '/activations', activation)
@@ -362,6 +363,7 @@ def main():
   keep_prob = tf.placeholder(dtype=tf.float32, shape=())
   learning_rate = tf.placeholder(dtype=tf.float32, shape=())
   regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
+
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
