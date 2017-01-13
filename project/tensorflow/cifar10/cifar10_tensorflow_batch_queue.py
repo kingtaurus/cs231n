@@ -22,6 +22,10 @@ from scipy import ndimage
 import tensorflow as tf
 from tensorflow.models.image.cifar10 import cifar10_input
 
+import argparse
+from collections import namedtuple
+
+
 import seaborn as sns
 sns.set_style("darkgrid")
 plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
@@ -83,25 +87,46 @@ def maybe_download_and_extract(data_dir):
     tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
 def activation_summaries(activation, name):
+  #might want to specify the activation type (since min will always be 0 for ReLU)
   with tf.name_scope("activation_summaries"):
     mean = tf.reduce_mean(activation)
-    tf.histogram_summary(name + '/activations', activation)
-    tf.scalar_summary(name + '/sparsity', tf.nn.zero_fraction(activation))
+    tf.summary.histogram(name + '/activations', activation)
+    tf.summary.scalar(name + '/sparsity', tf.nn.zero_fraction(activation))
     with tf.name_scope('stddev'):
       stddev = tf.sqrt(tf.reduce_sum(tf.square(activation - mean)))
-    tf.scalar_summary('stddev/' + name, stddev)
-    tf.scalar_summary('max/' + name, tf.reduce_max(activation))
-    tf.scalar_summary('min/' + name, tf.reduce_min(activation))
+    tf.summary.scalar('stddev/' + name, stddev)
+    tf.summary.scalar('max/' + name, tf.reduce_max(activation))
+    tf.summary.scalar('min/' + name, tf.reduce_min(activation))
 
 def variable_summaries(variable, name):
   with tf.name_scope("variable_summaries"):
     mean = tf.reduce_mean(variable)
-    tf.histogram_summary(name + '/variable_hist', variable)
+    tf.summary.histogram(name + '/variable_hist', variable)
     with tf.name_scope('stddev'):
       stddev = tf.sqrt(tf.reduce_sum(tf.square(variable - mean)))
-    tf.scalar_summary('stddev/' + name, stddev)
-    tf.scalar_summary('max/' + name, tf.reduce_max(variable))
-    tf.scalar_summary('min/' + name, tf.reduce_min(variable))
+    tf.summary.scalar('stddev/' + name, stddev)
+    tf.summary.scalar('max/' + name, tf.reduce_max(variable))
+    tf.summary.scalar('min/' + name, tf.reduce_min(variable))
+
+#reg_placeholder = tf.placeholder(dtype=tf.float32, shape=[1])
+## may want to add this to the inputs for rcl (and inference methods)
+# with tf.op_scope([tensor], scope, 'L2Loss'):
+#     weight = tf.convert_to_tensor(weight,
+#                               dtype=tensor.dtype.base_dtype,
+#                               name='loss_weight')
+#     loss = tf.mul(weight, tf.nn.l2_loss(tensor), name='value')
+#     tf.add_to_collection(LOSSES_COLLECTION, loss)
+#     return loss
+
+
+# IDEA: construct validation network (reuses parameters)
+#       construct train network
+#       construct visualization tool
+#       construct weight reduction test
+
+#probably need to change for validation
+# so: it should be train_layer
+# validation_layer = tf.get_variable("W", resuse=True)
 
 def get_cifar10_filenames(data_dir):
   data_dir += "/cifar-10-batches-bin"
@@ -182,7 +207,7 @@ def read_cifar10(data_dir, image_size=IMAGE_SIZE, batch_size=BATCH_SIZE):
   distorted_image = tf.image.random_contrast(distorted_image,
                                              lower=0.2, upper=1.8)
 
-  float_image = tf.image.per_image_whitening(distorted_image)
+  float_image = tf.image.per_image_standardization(distorted_image)
 
   min_fraction_of_examples_in_queue = 0.4
   min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
@@ -205,6 +230,16 @@ def weight_decay(layer_weights, wd=0.99):
   layer_weights = tf.mul(wd, layer_weights)
   return layer_weights
 
+def conv_relu_eval_model(layer_in, name):
+  with tf.variable_scope(name, reuse=True) as scope:
+    kernel = tf.get_variable("W")
+    bias = tf.get_variable("b")
+    conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
+    layer = tf.nn.relu(conv + bias)
+  return layer
+
+sub = None
+
 def conv_relu(layer_in, kernel_shape, bias_shape, name):
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
@@ -219,10 +254,23 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
     # layer = tf.nn.lrn(layer, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm')
   return layer
 
+def fcl_relu_eval_model(layer_in, name):
+  with tf.variable_scope(name, reuse=True) as scope:
+    dim = np.prod(layer_in.get_shape().as_list()[1:])
+    reshape = tf.reshape(layer_in, [-1, dim])
+    weights = tf.get_variable("W_fcl")
+    bias = tf.get_variable("b_fcl")
+    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias)
+    layer = tf.nn.dropout(layer, 1.0)
+  return layer
+
 def fcl_relu(layer_in, output_size, name,
              regularizer_weight=None, keep_prob = None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
+    #batch_size = layer_in.get_shape().as_list()[0]
+    #dim = np.prod(layer_in.get_shape().as_list()[1:])
+    #reshape = tf.reshape(layer_in, [-1, dim])
     batch_size = layer_in.get_shape().as_list()[0]
     reshape = tf.reshape(layer_in, [batch_size, -1])
     dim = reshape.get_shape()[1].value
@@ -230,12 +278,19 @@ def fcl_relu(layer_in, output_size, name,
                               shape=[dim, output_size],
                               initializer=tf.contrib.layers.xavier_initializer())
     bias = tf.get_variable("b_fcl",
-                             shape=[output_size],
-                             initializer=tf.constant_initializer(0.))
+                           shape=[output_size],
+                           initializer=tf.constant_initializer(0.))
+    if keep_prob is None:
+      keep_prob = 1.
     layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name + "_activation")
+    layer = tf.nn.dropout(layer, keep_prob)
     variable_summaries(weights, weights.name)
     #variable_summaries(bias, bias.name)
     activation_summaries(layer, layer.name)
+    if regularizer_weight is None:
+      regularizer_weight = DEFAULT_REG_WEIGHT
+    regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
+    tf.add_to_collection(loss_collection, regularizer_loss)
   return layer
 
 def inference(images,
@@ -267,6 +322,10 @@ def inference(images,
       variable_summaries(weights, weights.name)
       #variable_summaries(biases, biases.name)
       #activation_summaries(pre_softmax_linear, pre_softmax_linear.name)
+      if regularizer_weight is None:
+        regularizer_weight = DEFAULT_REG_WEIGHT
+      regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
+      tf.add_to_collection(loss_collection, regularizer_loss)
   return pre_softmax_linear
 
 def predict(logits):
@@ -275,13 +334,13 @@ def predict(logits):
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits, labels, name='cross_entropy_per_example')
+      logits=logits, labels=labels, name='cross_entropy_per_example')
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
 
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.01
+INITIAL_LEARNING_RATE = 0.02
 LEARNING_RATE_DECAY_FACTOR = 0.95
 NUM_EPOCHS_PER_DECAY = 5
 MAX_STEPS = 100000
@@ -297,7 +356,7 @@ def train(total_loss, global_step, batch_size=BATCH_SIZE):
                                   LEARNING_RATE_DECAY_FACTOR,
                                   staircase=True)
 
-  tf.scalar_summary('learning_rate', lr)
+  tf.summary.scalar('learning_rate', lr)
 
   # with tf.control_dependencies([total_loss]):
   #   opt = tf.train.AdamOptimizer(lr)
@@ -350,13 +409,26 @@ def main():
 
   saver = tf.train.Saver(tf.all_variables())
 
-  summary_op = tf.merge_all_summaries()
-  acc_summary = tf.scalar_summary('Training_accuracy (Batch)', accuracy_op)
-  cross_entropy_loss = tf.scalar_summary('loss_raw', loss_op)
-  reg_loss_summary   = tf.scalar_summary('regularization_loss', reg_loss)
-  total_loss_summary = tf.scalar_summary('total_loss', total_loss)
+  summary_op = tf.summary.merge_all()
 
-  init = tf.initialize_all_variables()
+  # confusion_img_placeholder = tf.placeholder(dtype=tf.uint8, shape=[1,None,None,4])
+  # confusion_matrix_summary  = tf.summary.image('confusion_matrix', confusion_img_placeholder)
+
+  acc_summary        = tf.summary.scalar('Training_accuracy_batch', accuracy_op)
+  validation_acc_summary = tf.summary.scalar('Validation_accuracy', accuracy_op)
+  cross_entropy_loss = tf.summary.scalar('loss_raw', loss_op)
+  reg_loss_summary   = tf.summary.scalar('regularization_loss', reg_loss)
+  total_loss_summary = tf.summary.scalar('total_loss', total_loss)
+
+  accuracy_batch = tf.placeholder(shape=(None), dtype=tf.float32)
+  accuracy_100 = tf.reduce_mean(accuracy_batch)
+  mean_summary = tf.summary.scalar('Training_accuracy_mean', accuracy_100)
+  validation_mean_summary = tf.summary.scalar('Validation_accuracy_mean', accuracy_100)
+
+  acc_summary_histogram = tf.summary.histogram('Training_accuracy_histogram', accuracy_batch)
+
+  #SESSION Construction
+  init = tf.global_variables_initializer()
   sess = tf.Session(config=tf.ConfigProto(
         log_device_placement=False))
   sess.run(init)
@@ -369,7 +441,7 @@ def main():
   # add details, relating per epoch results (and mean filtered loss etc.)
   train_dir = "cifar10_results/LR_" + str(INITIAL_LEARNING_RATE) + "/" + "REG_" + str(DEFAULT_REG_WEIGHT) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
-  summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
+  summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   nbatches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
   for step in range(MAX_STEPS):

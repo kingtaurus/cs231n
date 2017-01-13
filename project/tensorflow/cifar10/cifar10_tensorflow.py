@@ -254,7 +254,7 @@ def inference(images,
         regularizer_weight = DEFAULT_REG_WEIGHT
       regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
       tf.add_to_collection(loss_collection, regularizer_loss)
-  grad_image = tf.gradients(layer[0,0], [images])
+  grad_image = tf.gradients(layer, [images])
   print(grad_image[0].get_shape())
   return pre_softmax_linear, grad_image[0]
 
