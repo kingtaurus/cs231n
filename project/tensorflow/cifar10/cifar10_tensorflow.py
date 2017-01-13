@@ -305,9 +305,21 @@ parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='
 # Add classwise scalars
 ##
 
+#probably should pass in the optimizer to be used:
+# tf.train.GradientDescentOptimizer
+# tf.train.AdagradDAOptimizer
+# tf.train.MomentumOptimizer
+# tf.train.AdamOptimizer
+# tf.train.FtrlOptimizer
+# tf.train.ProximalGradientDescentOptimizer
+# tf.train.ProximalAdagradOptimizer
+# tf.train.RMSPropOptimizer
 
 #probably should pass in a momentum parameters
-def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_steps=DECAY_STEPS, lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
+def train(total_loss, global_step,
+          learning_rate=INITIAL_LEARNING_RATE,
+          decay_steps=DECAY_STEPS,
+          lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
                                   decay_steps,#number of steps required for it to decay
@@ -339,6 +351,15 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_st
   # grads = opt.compute_gradients(total_loss)
 
   return train_op
+
+
+#REFACTOR IDEA:
+# (*) get_args() [ should be in main ? ];
+# (0) load_data [ ... ];
+# (1) build [constructs the graph], including placeholders and variables
+# (2) train [generates training op]
+# (3) generate parameters for two runs (one on each GPU)
+# (4) runs [feeds and runs ops]
 
 def main():
   #parser.print_help()
@@ -508,7 +529,7 @@ def main():
     if (step % 500 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
-      saver.save(sess, checkpoint_path, global_step=step)
+      saver.save(sess, checkpoint_path, global_step=step, write_meta_graph=False)
 
   return 0
 
