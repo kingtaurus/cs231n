@@ -170,7 +170,7 @@ def fcl_relu_eval_model(layer_in, name):
   return layer
 
 def fcl_relu(layer_in, output_size, name,
-             regularizer_weight=None, keep_prob = None,
+             regularizer_weight=None, keep_prob=None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
     #batch_size = layer_in.get_shape().as_list()[0]
@@ -205,6 +205,7 @@ def inference_eval_model(images,
     layer = conv_relu_eval_model(layer, "conv_4")
     layer = conv_relu_eval_model(layer, "conv_5")
     layer = conv_relu_eval_model(layer, "conv_6")
+    layer = conv_relu_eval_model(layer, "conv_7")
     layer = fcl_relu_eval_model(layer, "fcl_1")
     with tf.variable_scope('pre_softmax_linear', reuse=True) as scope:
       weights = tf.get_variable('weights')
@@ -229,8 +230,9 @@ def inference(images,
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_2")
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_3")
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
-    layer = conv_relu(layer,  [3,3,128,256], [256], "conv_5")
-    layer = conv_relu(layer,  [3,3,256,256], [256], "conv_6")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
+    layer = conv_relu(layer,  [3,3,128,256], [256], "conv_7")
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
@@ -273,7 +275,7 @@ def loss(logits, labels):
 INITIAL_LEARNING_RATE = 0.03
 LEARNING_RATE_DECAY_FACTOR = 0.80
 DROPOUT_KEEPPROB = 0.9
-NUM_EPOCHS_PER_DECAY = 15
+NUM_EPOCHS_PER_DECAY = 20
 MAX_STEPS = 100000
 
 DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 95
@@ -305,6 +307,17 @@ parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='
 # Add classwise scalars
 ##
 
+GradOpt    = tf.train.GradientDescentOptimizer
+AdagradOpt = tf.train.AdagradDAOptimizer
+MomOpt     = tf.train.MomentumOptimizer
+AdamOpt    = tf.train.AdamOptimizer
+RMSOpt     = tf.train.RMSPropOptimizer
+
+opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
+                MomOpt  : "momentum", AdamOpt : "ADAM",
+                RMSOpt  : "RMSProp"
+               }
+
 #probably should pass in the optimizer to be used:
 # tf.train.GradientDescentOptimizer
 # tf.train.AdagradDAOptimizer
@@ -314,6 +327,9 @@ parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='
 # tf.train.ProximalGradientDescentOptimizer
 # tf.train.ProximalAdagradOptimizer
 # tf.train.RMSPropOptimizer
+
+## BATCH NORM
+# tf.contrib.layers.batch_norm
 
 #probably should pass in a momentum parameters
 def train(total_loss, global_step,
@@ -330,7 +346,7 @@ def train(total_loss, global_step,
 
   #compute gradient step
   with tf.control_dependencies([total_loss]):
-    opt = tf.train.MomentumOptimizer(lr, momentum=0.95)
+    opt = MomOpt(learning_rate=lr, momentum=0.95)
     grads = opt.compute_gradients(total_loss)
 
   #if we wanted to clip the gradients
