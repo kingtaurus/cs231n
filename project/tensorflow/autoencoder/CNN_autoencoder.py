@@ -180,7 +180,7 @@ input_image   = tf.summary.image("VB_image",             x_image, max_outputs=3)
 # tf.summary.image("filtered_images_1", layer_combine_1)
 # #tf.summar.image("filtered_images_2", layer_combine_2, max_outputs=5)
 
-encoded_image = tf.summary.image("VB_autoencoder_image)", x_gen_image, max_outputs=3)
+encoded_image = tf.summary.image("VB_autoencoder_image", x_gen_image, max_outputs=3)
 
 merged = tf.summary.merge_all()
 writer = tf.summary.FileWriter("MNIST_CNN_autoencoder", sess.graph)
