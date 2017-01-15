@@ -126,15 +126,15 @@ x_gen            = tf.nn.relu(tf.matmul(h_flat_decoder1, W_decoder_1_to_2) + b_d
 
 x_gen_image = tf.reshape(x_gen, shape=[-1, 28, 28, 1])
 
-input_image   = tf.image_summary("input image", x_image, max_images=2)
-encoded_image = tf.image_summary("autoencoder image", x_gen_image, max_images=2)
+input_image   = tf.summary.image("input_image", x_image, max_outputs=2)
+encoded_image = tf.summary.image("autoencoder_image", x_gen_image, max_outputs=2)
 
 loss = tf.reduce_mean(tf.square(x - x_gen), name="l2_loss")
 
-summary_loss = tf.scalar_summary(loss.op.name, loss)
+summary_loss = tf.summary.scalar(loss.op.name, loss)
 train_step   = tf.train.AdamOptimizer(1e-4).minimize(loss)
 
-input_image   = tf.image_summary("Validation Batch (image)",             x_image, max_images=3)
+input_image   = tf.summary.image("VB_image",             x_image, max_outputs=3)
 # # layer1_image  = tf.transpose(cnn_layer_1[0, :, :, :], perm=[2,0,1])
 # # layer1_image  = tf.expand_dims(layer1_image, -1)
 
@@ -142,8 +142,8 @@ input_image   = tf.image_summary("Validation Batch (image)",             x_image
 # # # print(cnn_layer_1.get_shape())
 # # # print(layer1_image.get_shape())
 # # # print(x_gen_image.get_shape())
-# # layer_1_image = tf.image_summary("Layer_1_image", layer1_image, max_images=3)
-# # layer_2_image = tf.image_summary("Layer_2_image", layer2_alternate, max_images=3)
+# # layer_1_image = tf.summary.image("Layer_1_image", layer1_image, max_outputs=3)
+# # layer_2_image = tf.summary.image("Layer_2_image", layer2_alternate, max_outputs=3)
 
 
 # layer1_image1 = cnn_layer_1[0:1, :, :, 0:16]
@@ -177,24 +177,24 @@ input_image   = tf.image_summary("Validation Batch (image)",             x_image
 
 # # layer_combine = tf.reshape(layer_combine, [16, 28, 3 * 28, 1])
 
-# tf.image_summary("filtered_images_1", layer_combine_1)
-# #tf.image_summary("filtered_images_2", layer_combine_2, max_images=5)
+# tf.summary.image("filtered_images_1", layer_combine_1)
+# #tf.summar.image("filtered_images_2", layer_combine_2, max_outputs=5)
 
-encoded_image = tf.image_summary("Validation Batch (autoencoder image)", x_gen_image, max_images=3)
+encoded_image = tf.summary.image("VB_autoencoder_image)", x_gen_image, max_outputs=3)
 
-merged = tf.merge_all_summaries()
-writer = tf.train.SummaryWriter("MNIST_CNN_autoencoder", sess.graph)
-
-sess.run(tf.initialize_all_variables())
-
-start = time.time()
-loop_time = start
+merged = tf.summary.merge_all()
+writer = tf.summary.FileWriter("MNIST_CNN_autoencoder", sess.graph)
 
 print("number of test       = ", n_test)      # 10000
 print("number of train      = ", n_train)     # 55000
 print("number_of validation = ", n_validation)# 5000
+
+sess.run(tf.global_variables_initializer())
+
+start = time.time()
+loop_time = start
 #print(dir(mnist.test))
-chunk_size = 100
+chunk_size = 1000
 batch_Xtest_list = [mnist.test.images[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 batch_ytest_list = [mnist.test.labels[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 
