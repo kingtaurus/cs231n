@@ -194,10 +194,11 @@ print("number of test       = ", n_test)      # 10000
 print("number of train      = ", n_train)     # 55000
 print("number_of validation = ", n_validation)# 5000
 #print(dir(mnist.test))
-chunk_size = 1000
+chunk_size = 100
 batch_Xtest_list = [mnist.test.images[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 batch_ytest_list = [mnist.test.labels[i:i+chunk_size] for i in range(0, n_test, chunk_size)]
 
+print(batch_Xtest_list[0])
 print("Done splitting up test data set;")
 print("Starting training loop.")
 
@@ -208,14 +209,14 @@ for i in range(5500):
 		print("Shuffling the training data;")
 		if i != 0:
 			epoch_state = np.random.get_state()
-			np.random.shuffle(mnist.train.images)
+			np.random.permutation(mnist.train.images)
 			np.random.set_state(epoch_state)
-			np.random.shuffle(mnist.train.labels)
+			np.random.permutation(mnist.train.labels)
 
 	batch = mnist.train.next_batch(100)
 	if i % 10 == 0:
 		validation_batch = mnist.validation.next_batch(100)
-		feed_dict_val = {x: validation_batch[0], 
+		feed_dict_val = {x : validation_batch[0],
 		                 y_ : validation_batch[1]}
 		validation_results = sess.run([merged, loss, x_gen_image], feed_dict=feed_dict_val)
 		print("STEP %d, validation %g" % (i, validation_results[1]))
@@ -228,13 +229,14 @@ for i in range(5500):
 		# plt.imshow(validation_results[2][0].reshape((28,28)))
 		# plt.show()
 		# plt.savefig('foo.png', bbox_inches='tight')
-	train_step.run(session=sess, feed_dict={x:batch[0], y_: batch[1]})
+	train_step.run(session=sess, feed_dict={x : batch[0], y_ : batch[1]})
 
 #numpy_Wc1 =  W_conv1.eval(sess)
 
 loss_estimate = 0.
 for i in range(len(batch_Xtest_list)):
-	loss_estimate += loss.eval(session=sess, feed_dict={x:batch_Xtest_list[i], y_: batch_ytest_list[i]})
+	loss_estimate += loss.eval(session=sess, feed_dict={x : batch_Xtest_list[i],
+	                                                    y_ : batch_ytest_list[i]})
 print("final loss %g" % (loss_estimate/len(batch_Xtest_list)))
 print("run time = %d" % (time.time() - start))
 
