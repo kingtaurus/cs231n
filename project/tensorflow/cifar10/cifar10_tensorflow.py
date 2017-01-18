@@ -54,7 +54,9 @@ def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, label
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
-    return buf
+    test_image = np.array(ndimage.imread(buf))
+    plt.close()
+    return test_image[np.newaxis,:]
 
 IMAGE_SIZE = 32
 NUM_CLASSES = 10
@@ -330,6 +332,7 @@ opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
 
 ## BATCH NORM
 # tf.contrib.layers.batch_norm
+# batch_norm
 
 #probably should pass in a momentum parameters
 def train(total_loss, global_step,
@@ -427,9 +430,6 @@ def main():
   tf.summary.image('images', X_image)
   summary_op = tf.summary.merge_all()
 
-  # confusion_img_placeholder = tf.placeholder(dtype=tf.uint8, shape=[1,None,None,4])
-  # confusion_matrix_summary  = tf.summary.image('confusion_matrix', confusion_img_placeholder)
-
   acc_summary        = tf.summary.scalar('Training_accuracy_batch', accuracy_op)
   validation_acc_summary = tf.summary.scalar('Validation_accuracy', accuracy_op)
   cross_entropy_loss = tf.summary.scalar('loss_raw', loss_op)
@@ -464,13 +464,14 @@ def main():
   # add details, relating per epoch results (and mean filtered loss etc.)
   train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
-  summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   acc_list = []
   valid_acc_list = []
 
   cm_placeholder = tf.placeholder(shape=(1, None, None, 4), dtype=tf.uint8)
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
+
+  summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   print("Starting Training.")
   print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
@@ -490,7 +491,8 @@ def main():
     sess.run(train_op, feed_dict=feed_dict)
 
     acc_list.append(accuracy)
-    accuracy_100_str = sess.run(mean_summary, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
+    acc_list = acc_list[-100:]
+    accuracy_100_str = sess.run(mean_summary, feed_dict={accuracy_batch : np.array(acc_list)})
     #print(sess.run([accuracy_100], feed_dict={accuracy_batch : np.array(acc_list[-100:])}))
     summary_writer.add_summary(acc_str, step)
     summary_writer.add_summary(xentropy_str, step)
@@ -509,21 +511,20 @@ def main():
     if step % 10 == 0:
       #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
-        confusion_buf = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
+        print('creating image;')
+        confusion_img = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
                                               title='Confusion matrix',
                                               cmap=plt.cm.Blues,
                                               labels=classes)
-        img = tf.image.decode_png(confusion_buf.getvalue(), channels=4)
-        img = tf.expand_dims(img, 0)
-        np_img = img.eval(session=sess)
         # print(img.get_shape())
         # print(img.dtype)
 
-        summary_writer.add_summary(confusion_summary.eval(session=sess, feed_dict={cm_placeholder: np_img}), step)
-        plt.close()
+        summary_writer.add_summary(confusion_summary.eval(session=sess, feed_dict={cm_placeholder: confusion_img}), step)
+        del confusion_img
 
         acc_summary_histogram_out = sess.run(acc_summary_histogram, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
         summary_writer.add_summary(acc_summary_histogram_out, step)
+        print('done adding summary')
       num_valid = data['X_val'].shape[0]
       #batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
       X_val_batch = data['X_val']#[batch_valid_mask]
@@ -533,8 +534,9 @@ def main():
       valid_summary, valid_acc = sess.run([validation_acc_summary, accuracy_op], feed_dict=valid_dict)
       valid_acc_list.append(valid_acc)
 
+      valid_acc_list = valid_acc_list[-100:]
       # Probably should change the slice size to be smaller (10 instead of 100)
-      valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list[-10:])})
+      valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list)})
       print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
       print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
       overfit_summary_str = sess.run(overfit_summary, feed_dict = {overfit_estimate : accuracy - valid_acc})
@@ -542,7 +544,7 @@ def main():
       summary_writer.add_summary(valid_summary, step)
       summary_writer.add_summary(valid_accuracy_100_str, step)
 
-    if (step % 500 == 0 and step > 0) or (step + 1) == max_steps:
+    if (step % 5000 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
       saver.save(sess, checkpoint_path, global_step=step, write_meta_graph=False)
