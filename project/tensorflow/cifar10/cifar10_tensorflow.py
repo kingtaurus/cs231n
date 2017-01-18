@@ -238,6 +238,8 @@ def inference(images,
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
+    last_conv_layer = layer
+    print(last_conv_layer.get_shape())
     layer = fcl_relu(layer, 128, "fcl_1", keep_prob=keep_prob)
 
     with tf.variable_scope('pre_softmax_linear') as scope:
@@ -258,9 +260,10 @@ def inference(images,
         regularizer_weight = DEFAULT_REG_WEIGHT
       regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
       tf.add_to_collection(loss_collection, regularizer_loss)
-  grad_image = tf.gradients(layer, [images])
+  grad_image_placeholder = tf.placeholder(dtype=tf.float32, shape=last_conv_layer.get_shape())
+  grad_image = tf.gradients(last_conv_layer, [images], grad_image_placeholder)
   print(grad_image[0].get_shape())
-  return pre_softmax_linear, grad_image[0]
+  return pre_softmax_linear, grad_image[0], grad_image_placeholder
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
@@ -410,7 +413,7 @@ def main():
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
   #MODEL construction
-  logits, grad_image = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits, grad_image, grad_image_placeholder = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -456,6 +459,19 @@ def main():
 
   sess = tf.Session(config=config)
   sess.run(init)
+  # input_grad_image = np.zeros((1,32,32,16), dtype=np.float)
+  # input_grad_image[0,15,15,:] = 1000.
+  # back_image = sess.run(grad_image[0], feed_dict={X_image : 128 * np.ones((1,32,32,3)), regularizer_weight : 0., keep_prob : 1.0, grad_image_placeholder : input_grad_image})
+  # print(back_image, np.max(back_image))
+  # plt.figure()
+  # max_value = np.max(back_image)
+  # min_value = np.min(back_image)
+  # print(back_image.shape)
+  # plt.imshow(back_image[:,:,0], cmap=plt.get_cmap("seismic"), vmin=-1,
+  #        vmax=1, interpolation="nearest")
+  # plt.show()
+  # sys.exit(0)
+
 
   #today = date.today()
   current_time = datetime.now()
