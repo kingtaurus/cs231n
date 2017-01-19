@@ -54,15 +54,16 @@ def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, label
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
-    return buf
+    test_image = np.array(ndimage.imread(buf))
+    plt.close()
+    return test_image[np.newaxis,:]
 
 IMAGE_SIZE = 32
 NUM_CLASSES = 10
 BATCH_SIZE = 512
 
 LOSSES_COLLECTION  = 'regularizer_losses'
-DEFAULT_REG_WEIGHT =  5e-2
-
+DEFAULT_REG_WEIGHT =  1e-1
 
 def activation_summaries(activation, name):
   #might want to specify the activation type (since min will always be 0 for ReLU)
@@ -181,7 +182,7 @@ def fcl_relu_eval_model(layer_in, name):
   return layer
 
 def fcl_relu(layer_in, output_size, name,
-             regularizer_weight=None, keep_prob = None,
+             regularizer_weight=None, keep_prob=None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
     #batch_size = layer_in.get_shape().as_list()[0]
@@ -216,7 +217,7 @@ def inference_eval_model(images,
     layer = conv_relu_eval_model(layer, "conv_4")
     layer = conv_relu_eval_model(layer, "conv_5")
     layer = conv_relu_eval_model(layer, "conv_6")
-    #layer = conv_relu_eval_model(layer, "conv_7")
+    layer = conv_relu_eval_model(layer, "conv_7")
     layer = fcl_relu_eval_model(layer, "fcl_1")
     with tf.variable_scope('pre_softmax_linear', reuse=True) as scope:
       weights = tf.get_variable('weights')
@@ -241,13 +242,15 @@ def inference(images,
     layer, wd_1 = conv_relu(layer,  [3,3,128,128], [128], "conv_2")
     layer, wd_2 = conv_relu(layer,  [3,3,128,128], [128], "conv_3")
     layer, wd_3 = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
-    layer, wd_4 = conv_relu(layer,  [3,3,128,256], [256], "conv_5")
-    layer, wd_5 = conv_relu(layer,  [3,3,256,256], [256], "conv_6")
-    #layer, wd_6 = conv_relu(layer,  [3,3,256,256], [256], "conv_7")
+    layer, wd_4 = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
+    layer, wd_5 = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
+    layer, wd_6 = conv_relu(layer,  [3,3,128,256], [256], "conv_7")
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = fcl_relu(layer, 128, "fcl_1", regularizer_weight=regularizer_weight, keep_prob=keep_prob)
+    last_conv_layer = layer
+    print(last_conv_layer.get_shape())
+    layer = fcl_relu(layer, 128, "fcl_1", keep_prob=keep_prob)
 
     with tf.variable_scope('pre_softmax_linear') as scope:
       weights = tf.get_variable('weights',
@@ -267,7 +270,10 @@ def inference(images,
         regularizer_weight = DEFAULT_REG_WEIGHT
       regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
       tf.add_to_collection(loss_collection, regularizer_loss)
-  return pre_softmax_linear, wd_0, wd_1, wd_2
+  grad_image_placeholder = tf.placeholder(dtype=tf.float32, shape=last_conv_layer.get_shape())
+  grad_image = tf.gradients(last_conv_layer, [images], grad_image_placeholder)
+  print(grad_image[0].get_shape())
+  return pre_softmax_linear, (wd_0, wd_1, wd_2), grad_image[0], grad_image_placeholder
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
@@ -284,7 +290,7 @@ def loss(logits, labels):
 INITIAL_LEARNING_RATE = 0.03
 LEARNING_RATE_DECAY_FACTOR = 0.80
 DROPOUT_KEEPPROB = 0.9
-NUM_EPOCHS_PER_DECAY = 15
+NUM_EPOCHS_PER_DECAY = 20
 MAX_STEPS = 100000
 
 DECAY_STEPS = NUM_EPOCHS_PER_DECAY * 95
@@ -316,9 +322,36 @@ parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='
 # Add classwise scalars
 ##
 
+GradOpt    = tf.train.GradientDescentOptimizer
+AdagradOpt = tf.train.AdagradDAOptimizer
+MomOpt     = tf.train.MomentumOptimizer
+AdamOpt    = tf.train.AdamOptimizer
+RMSOpt     = tf.train.RMSPropOptimizer
+
+opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
+                MomOpt  : "momentum", AdamOpt : "ADAM",
+                RMSOpt  : "RMSProp"
+               }
+
+#probably should pass in the optimizer to be used:
+# tf.train.GradientDescentOptimizer
+# tf.train.AdagradDAOptimizer
+# tf.train.MomentumOptimizer
+# tf.train.AdamOptimizer
+# tf.train.FtrlOptimizer
+# tf.train.ProximalGradientDescentOptimizer
+# tf.train.ProximalAdagradOptimizer
+# tf.train.RMSPropOptimizer
+
+## BATCH NORM
+# tf.contrib.layers.batch_norm
+# batch_norm
 
 #probably should pass in a momentum parameters
-def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_steps=DECAY_STEPS, lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
+def train(total_loss, global_step,
+          learning_rate=INITIAL_LEARNING_RATE,
+          decay_steps=DECAY_STEPS,
+          lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
   lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
                                   decay_steps,#number of steps required for it to decay
@@ -329,7 +362,7 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_st
 
   #compute gradient step
   with tf.control_dependencies([total_loss]):
-    opt = tf.train.MomentumOptimizer(lr, momentum=0.95)
+    opt = MomOpt(learning_rate=lr, momentum=0.95)
     grads = opt.compute_gradients(total_loss)
 
   #if we wanted to clip the gradients
@@ -350,6 +383,15 @@ def train(total_loss, global_step, learning_rate=INITIAL_LEARNING_RATE, decay_st
   # grads = opt.compute_gradients(total_loss)
 
   return train_op
+
+
+#REFACTOR IDEA:
+# (*) get_args() [ should be in main ? ];
+# (0) load_data [ ... ];
+# (1) build [constructs the graph], including placeholders and variables
+# (2) train [generates training op]
+# (3) generate parameters for two runs (one on each GPU)
+# (4) runs [feeds and runs ops]
 
 def main():
   #parser.print_help()
@@ -381,7 +423,7 @@ def main():
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
   #MODEL construction
-  logits, wd_0, wd_1, wd_2 = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits, (wd_0, wd_1, wd_2), grad_image, grad_image_placeholder = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -400,9 +442,6 @@ def main():
   #Summary operation
   tf.summary.image('images', X_image)
   summary_op = tf.summary.merge_all()
-
-  # confusion_img_placeholder = tf.placeholder(dtype=tf.uint8, shape=[1,None,None,4])
-  # confusion_matrix_summary  = tf.summary.image('confusion_matrix', confusion_img_placeholder)
 
   acc_summary        = tf.summary.scalar('Training_accuracy_batch', accuracy_op)
   validation_acc_summary = tf.summary.scalar('Validation_accuracy', accuracy_op)
@@ -430,6 +469,18 @@ def main():
 
   sess = tf.Session(config=config)
   sess.run(init)
+  # input_grad_image = np.zeros((1,32,32,16), dtype=np.float)
+  # input_grad_image[0,15,15,:] = 1000.
+  # back_image = sess.run(grad_image[0], feed_dict={X_image : 128 * np.ones((1,32,32,3)), regularizer_weight : 0., keep_prob : 1.0, grad_image_placeholder : input_grad_image})
+  # print(back_image, np.max(back_image))
+  # plt.figure()
+  # max_value = np.max(back_image)
+  # min_value = np.min(back_image)
+  # print(back_image.shape)
+  # plt.imshow(back_image[:,:,0], cmap=plt.get_cmap("seismic"), vmin=-1,
+  #        vmax=1, interpolation="nearest")
+  # plt.show()
+  # sys.exit(0)
 
   # print("sub.shape = ", sub.get_shape())
   # print("sub = ", sess.run(sub))
@@ -441,13 +492,14 @@ def main():
   # add details, relating per epoch results (and mean filtered loss etc.)
   train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
-  summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   acc_list = []
   valid_acc_list = []
 
   cm_placeholder = tf.placeholder(shape=(1, None, None, 4), dtype=tf.uint8)
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
+
+  summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   print("Starting Training.")
   print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
@@ -469,35 +521,40 @@ def main():
     sess.run(train_op, feed_dict=feed_dict)
 
     acc_list.append(accuracy)
-    accuracy_100_str = sess.run(mean_summary, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
+    acc_list = acc_list[-100:]
+    accuracy_100_str = sess.run(mean_summary, feed_dict={accuracy_batch : np.array(acc_list)})
     #print(sess.run([accuracy_100], feed_dict={accuracy_batch : np.array(acc_list[-100:])}))
     summary_writer.add_summary(acc_str, step)
     summary_writer.add_summary(xentropy_str, step)
     summary_writer.add_summary(reg_loss_str, step)
     summary_writer.add_summary(accuracy_100_str, step)
+    #image = sess.run(grad_image, feed_dict=feed_dict)
     #summary_writer.add_summary('Training_accuracy (Mean)', np.mean(acc_list[-100:]), step)
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
     if step % 100 == 0:
       summary_str = sess.run(summary_op, feed_dict=feed_dict)
       summary_writer.add_summary(summary_str, step)
-      #reg_weight *= 1.001
+      # plt.figure()
+      # plt.imshow(image[0])
+      # plt.grid(b=False)
+      # plt.show()
     if step % 10 == 0:
+      #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
-        confusion_buf = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
+        print('creating image;')
+        confusion_img = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
                                               title='Confusion matrix',
                                               cmap=plt.cm.Blues,
                                               labels=classes)
-        img = tf.image.decode_png(confusion_buf.getvalue(), channels=4)
-        img = tf.expand_dims(img, 0)
-        np_img = img.eval(session=sess)
         # print(img.get_shape())
         # print(img.dtype)
 
-        summary_writer.add_summary(confusion_summary.eval(session=sess, feed_dict={cm_placeholder: np_img}), step)
-        plt.close()
+        summary_writer.add_summary(confusion_summary.eval(session=sess, feed_dict={cm_placeholder: confusion_img}), step)
+        del confusion_img
 
         acc_summary_histogram_out = sess.run(acc_summary_histogram, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
         summary_writer.add_summary(acc_summary_histogram_out, step)
+        print('done adding summary')
       num_valid = data['X_val'].shape[0]
       #batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
       X_val_batch = data['X_val']#[batch_valid_mask]
@@ -507,8 +564,9 @@ def main():
       valid_summary, valid_acc = sess.run([validation_acc_summary, accuracy_op], feed_dict=valid_dict)
       valid_acc_list.append(valid_acc)
 
+      valid_acc_list = valid_acc_list[-100:]
       # Probably should change the slice size to be smaller (10 instead of 100)
-      valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list[-10:])})
+      valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list)})
       print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
       print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
       overfit_summary_str = sess.run(overfit_summary, feed_dict = {overfit_estimate : accuracy - valid_acc})
@@ -516,10 +574,10 @@ def main():
       summary_writer.add_summary(valid_summary, step)
       summary_writer.add_summary(valid_accuracy_100_str, step)
 
-    if (step % 500 == 0 and step > 0) or (step + 1) == max_steps:
+    if (step % 5000 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
-      saver.save(sess, checkpoint_path, global_step=step)
+      saver.save(sess, checkpoint_path, global_step=step, write_meta_graph=False)
 
   return 0
 
