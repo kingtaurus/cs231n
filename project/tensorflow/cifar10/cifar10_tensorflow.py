@@ -37,26 +37,26 @@ classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # plt.get_cmap('gray')
 def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=None):
-    if labels is None:
-        labels = list(range(len(cm)))
-    fig = plt.figure()
-    plt_img = plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    fig.colorbar(plt_img)
-    plt.title(title)
-    tick_marks = np.arange(len(labels))
-    plt.xticks(tick_marks, labels, rotation=45)
-    plt.yticks(tick_marks, labels)
-    plt.grid(b='off')
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    #plt.colorbar()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    test_image = np.array(ndimage.imread(buf))
-    plt.close()
-    return test_image[np.newaxis,:]
+  if labels is None:
+    labels = list(range(len(cm)))
+  fig = plt.figure()
+  plt_img = plt.imshow(cm, interpolation='nearest', cmap=cmap)
+  fig.colorbar(plt_img)
+  plt.title(title)
+  tick_marks = np.arange(len(labels))
+  plt.xticks(tick_marks, labels, rotation=45)
+  plt.yticks(tick_marks, labels)
+  plt.grid(b='off')
+  plt.tight_layout()
+  plt.ylabel('True label')
+  plt.xlabel('Predicted label')
+  #plt.colorbar()
+  buf = io.BytesIO()
+  plt.savefig(buf, format='png')
+  buf.seek(0)
+  test_image = np.array(ndimage.imread(buf))
+  plt.close()
+  return test_image[np.newaxis,:]
 
 IMAGE_SIZE = 32
 NUM_CLASSES = 10
@@ -374,7 +374,6 @@ def train(total_loss, global_step,
 
   return train_op
 
-
 #REFACTOR IDEA:
 # (*) get_args() [ should be in main ? ];
 # (0) load_data [ ... ];
@@ -424,6 +423,7 @@ def main():
   #print('decay_steps = ', lr_decay_time * (train_size // batch_size + 1))
   print("Number of batch steps till lr_decay = ", lr_decay_time * ((train_size //  batch_size) + 1))
   train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((train_size //  batch_size) + 1))
+
   saver = tf.train.Saver(tf.global_variables())
 
   logits_test = inference_eval_model(X_image)
@@ -563,7 +563,7 @@ def main():
     if (step % 5000 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
-      saver.save(sess, checkpoint_path, global_step=step, write_meta_graph=False)
+      saver.save(sess, checkpoint_path + 'model.ckpt', global_step=step, write_meta_graph=True)
 
   return 0
 
