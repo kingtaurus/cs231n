@@ -37,31 +37,33 @@ classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # plt.get_cmap('gray')
 def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=None):
-    if labels is None:
-        labels = list(range(len(cm)))
-    fig = plt.figure()
-    plt_img = plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    fig.colorbar(plt_img)
-    plt.title(title)
-    tick_marks = np.arange(len(labels))
-    plt.xticks(tick_marks, labels, rotation=45)
-    plt.yticks(tick_marks, labels)
-    plt.grid(b='off')
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    #plt.colorbar()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    return buf
+  if labels is None:
+    labels = list(range(len(cm)))
+  fig = plt.figure()
+  plt_img = plt.imshow(cm, interpolation='nearest', cmap=cmap)
+  fig.colorbar(plt_img)
+  plt.title(title)
+  tick_marks = np.arange(len(labels))
+  plt.xticks(tick_marks, labels, rotation=45)
+  plt.yticks(tick_marks, labels)
+  plt.grid(b='off')
+  plt.tight_layout()
+  plt.ylabel('True label')
+  plt.xlabel('Predicted label')
+  #plt.colorbar()
+  buf = io.BytesIO()
+  plt.savefig(buf, format='png')
+  buf.seek(0)
+  test_image = np.array(ndimage.imread(buf))
+  plt.close()
+  return test_image[np.newaxis,:]
 
 IMAGE_SIZE = 32
 NUM_CLASSES = 10
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 
 LOSSES_COLLECTION  = 'regularizer_losses'
-DEFAULT_REG_WEIGHT =  1e-2
+DEFAULT_REG_WEIGHT =  1e-1
 
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
@@ -190,7 +192,7 @@ def generate_batch(image, label, min_queue_examples, batch_size=BATCH_SIZE, shuf
         capacity=min_queue_examples + 3 * batch_size)
 
   # Display the training images in the visualizer.
-  tf.image_summary('images', images)
+  tf.summary.image('images', images)
 
   return images, tf.reshape(label_batch, [batch_size])
 
@@ -241,6 +243,7 @@ def conv_relu_eval_model(layer_in, name):
 sub = None
 
 def conv_relu(layer_in, kernel_shape, bias_shape, name):
+  global sub
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
                              shape=kernel_shape,
@@ -265,7 +268,7 @@ def fcl_relu_eval_model(layer_in, name):
   return layer
 
 def fcl_relu(layer_in, output_size, name,
-             regularizer_weight=None, keep_prob = None,
+             regularizer_weight=None, keep_prob=None,
              loss_collection=LOSSES_COLLECTION):
   with tf.variable_scope(name) as scope:
     #batch_size = layer_in.get_shape().as_list()[0]
@@ -274,6 +277,7 @@ def fcl_relu(layer_in, output_size, name,
     batch_size = layer_in.get_shape().as_list()[0]
     reshape = tf.reshape(layer_in, [batch_size, -1])
     dim = reshape.get_shape()[1].value
+    print(dim,output_size)
     weights = tf.get_variable("W_fcl",
                               shape=[dim, output_size],
                               initializer=tf.contrib.layers.xavier_initializer())
@@ -293,6 +297,30 @@ def fcl_relu(layer_in, output_size, name,
     tf.add_to_collection(loss_collection, regularizer_loss)
   return layer
 
+def inference_eval_model(images,
+                         classes = NUM_CLASSES,
+                         model_name="model_1"):
+  with tf.variable_scope(model_name, reuse=True) as model_scope:
+    layer = conv_relu_eval_model(images, "conv_1")
+    layer = conv_relu_eval_model(layer, "conv_2")
+    layer = conv_relu_eval_model(layer, "conv_3")
+    layer = conv_relu_eval_model(layer, "conv_4")
+    layer = conv_relu_eval_model(layer, "conv_5")
+    layer = conv_relu_eval_model(layer, "conv_6")
+    layer = conv_relu_eval_model(layer, "conv_7")
+    layer = fcl_relu_eval_model(layer, "fcl_1")
+    with tf.variable_scope('pre_softmax_linear', reuse=True) as scope:
+      weights = tf.get_variable('weights')
+      biases = tf.get_variable('biases')
+      pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
+  return pre_softmax_linear
+
+def predict_eval_model(logits):
+  return tf.argmax(logits, dimension=1)
+
+def accuracy_eval_model(logits, y_label):
+  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(y_label, tf.int64)), tf.float32))
+
 def inference(images,
               classes = NUM_CLASSES,
               keep_prob=None,
@@ -300,17 +328,23 @@ def inference(images,
               loss_collection=LOSSES_COLLECTION,
               model_name="model_1"):
   with tf.variable_scope(model_name) as model_scope:
-    layer = conv_relu(images, [5,5,3,64], [64], "conv_1")
-    layer = conv_relu(layer,  [5,5,64,64], [64], "conv_2")
-    layer = conv_relu(layer,  [5,5,64,128], [128], "conv_3")
+    layer = conv_relu(images, [5,5,3,128], [128], "conv_1")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_2")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_3")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
+    layer = conv_relu(layer,  [3,3,128,256], [256], "conv_7")
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = fcl_relu(layer, 64, "fcl_1", keep_prob=keep_prob)
+    last_conv_layer = layer
+    print(last_conv_layer.get_shape())
+    layer = fcl_relu(layer, 128, "fcl_1", keep_prob=keep_prob)
 
     with tf.variable_scope('pre_softmax_linear') as scope:
       weights = tf.get_variable('weights',
-                                shape=[64, classes],
+                                shape=[128, classes],
                                 initializer=tf.contrib.layers.xavier_initializer())
       biases = tf.get_variable('biases',
                                shape=[classes],
@@ -326,7 +360,10 @@ def inference(images,
         regularizer_weight = DEFAULT_REG_WEIGHT
       regularizer_loss = tf.mul(regularizer_weight, tf.nn.l2_loss(weights))
       tf.add_to_collection(loss_collection, regularizer_loss)
-  return pre_softmax_linear
+  grad_image_placeholder = tf.placeholder(dtype=tf.float32, shape=last_conv_layer.get_shape())
+  grad_image = tf.gradients(last_conv_layer, [images], grad_image_placeholder)
+  print(grad_image[0].get_shape())
+  return pre_softmax_linear, grad_image[0], grad_image_placeholder
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
@@ -340,20 +377,75 @@ def loss(logits, labels):
   # The total loss is defined as the cross entropy loss
   return cross_entropy_mean
 
-INITIAL_LEARNING_RATE = 0.02
-LEARNING_RATE_DECAY_FACTOR = 0.95
-NUM_EPOCHS_PER_DECAY = 5
+INITIAL_LEARNING_RATE = 0.03
+LEARNING_RATE_DECAY_FACTOR = 0.80
+DROPOUT_KEEPPROB = 0.9
+NUM_EPOCHS_PER_DECAY = 20
 MAX_STEPS = 100000
 
-def train(total_loss, global_step, batch_size=BATCH_SIZE):
-  number_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / batch_size
+DECAY_STEPS = NUM_EPOCHS_PER_DECAY * (NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN // BATCH_SIZE)
+#150 is roughly the number of batches per epoch
+#40,000/256 ~ 150
 
-  decay_steps = int(number_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+parser = argparse.ArgumentParser(description='CIFAR-10 Training', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--learning_rate', default=INITIAL_LEARNING_RATE,
+  type=float, nargs='?', help='Initial Learning Rate;')
+parser.add_argument('--decay_rate', default=LEARNING_RATE_DECAY_FACTOR,
+  type=float, nargs='?', help='Learning Rate Decay Factor;')#alternative %(default) in help string
+parser.add_argument('--keep_prob', default=DROPOUT_KEEPPROB, type=float, nargs='?',
+  help='Probablity to keep a neuron in the Full Connected Layers;')
+parser.add_argument('--max_steps', type=int, default=MAX_STEPS, nargs='?',
+  help='Maximum number of batches to run;')
+parser.add_argument('--lr_decay_time', type=int, default=NUM_EPOCHS_PER_DECAY, nargs='?',
+  help='Number of Epochs till LR decays;')
+parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_WEIGHT,
+  nargs='?', help='Regularization weight (l2 regularization);')
+parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
+  nargs='?', help='Batch size;')
+parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+##
+# Add device placement (0,1)?
+# Add Seed?
+##
 
-  lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
+##
+# Add classwise scalars
+##
+
+GradOpt    = tf.train.GradientDescentOptimizer
+AdagradOpt = tf.train.AdagradDAOptimizer
+MomOpt     = tf.train.MomentumOptimizer
+AdamOpt    = tf.train.AdamOptimizer
+RMSOpt     = tf.train.RMSPropOptimizer
+
+opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
+                MomOpt  : "momentum", AdamOpt : "ADAM",
+                RMSOpt  : "RMSProp"
+               }
+
+#probably should pass in the optimizer to be used:
+# tf.train.GradientDescentOptimizer
+# tf.train.AdagradDAOptimizer
+# tf.train.MomentumOptimizer
+# tf.train.AdamOptimizer
+# tf.train.FtrlOptimizer
+# tf.train.ProximalGradientDescentOptimizer
+# tf.train.ProximalAdagradOptimizer
+# tf.train.RMSPropOptimizer
+
+## BATCH NORM
+# tf.contrib.layers.batch_norm
+# batch_norm
+
+#probably should pass in a momentum parameters
+def train(total_loss, global_step,
+          learning_rate=INITIAL_LEARNING_RATE,
+          decay_steps=DECAY_STEPS,
+          lr_rate_decay_factor=LEARNING_RATE_DECAY_FACTOR):
+  lr = tf.train.exponential_decay(learning_rate,
                                   global_step,
-                                  decay_steps,
-                                  LEARNING_RATE_DECAY_FACTOR,
+                                  decay_steps,#number of steps required for it to decay
+                                  lr_rate_decay_factor,
                                   staircase=True)
 
   tf.summary.scalar('learning_rate', lr)
@@ -377,8 +469,27 @@ def train(total_loss, global_step, batch_size=BATCH_SIZE):
 
   return opt
 
+#REFACTOR IDEA:
+# (*) get_args() [ should be in main ? ];
+# (0) load_data [ ... ];
+# (1) build [constructs the graph], including placeholders and variables
+# (2) train [generates training op]
+# (3) generate parameters for two runs (one on each GPU)
+# (4) runs [feeds and runs ops]
+
 def main():
-  print("Loading Data (downloading if archive hasn't been downloaded already);")
+  #parser.print_help()
+  args = parser.parse_args()
+  print(args)
+  print("Loading Data;")
+
+  lr = args.learning_rate#INITIAL_LEARNING_RATE
+  reg_weight = args.regularization_weight
+  kp = args.keep_prob
+  max_steps = args.max_steps
+  decay_rate = args.decay_rate
+  lr_decay_time = args.lr_decay_time
+  batch_size = args.batch_size
 
   data_dir = "cifar10_images"
   train_dir = "cifar10_results/batch/"
@@ -398,21 +509,23 @@ def main():
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
   #MODEL construction
-  logits = inference(images)
+  logits, grad_image, grad_image_placeholder = inference(images)
   loss_op = loss(logits, labels)
 
   reg_loss = tf.reduce_sum(tf.get_collection(LOSSES_COLLECTION))
   total_loss = loss_op + reg_loss
 
   accuracy_op = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.cast(labels, tf.int64)), tf.float32))
-  train_op = train(total_loss, global_step, batch_size=BATCH_SIZE)
+  train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN //  batch_size) + 1))
 
-  saver = tf.train.Saver(tf.all_variables())
+  saver = tf.train.Saver(tf.global_variables())
 
+  logits_test = inference_eval_model(images)
+  accuracy_test = accuracy_eval_model(logits_test, labels)
+
+  #Summary operation
+  tf.summary.image('images', images)
   summary_op = tf.summary.merge_all()
-
-  # confusion_img_placeholder = tf.placeholder(dtype=tf.uint8, shape=[1,None,None,4])
-  # confusion_matrix_summary  = tf.summary.image('confusion_matrix', confusion_img_placeholder)
 
   acc_summary        = tf.summary.scalar('Training_accuracy_batch', accuracy_op)
   validation_acc_summary = tf.summary.scalar('Validation_accuracy', accuracy_op)
@@ -421,17 +534,37 @@ def main():
   total_loss_summary = tf.summary.scalar('total_loss', total_loss)
 
   accuracy_batch = tf.placeholder(shape=(None), dtype=tf.float32)
+  overfit_estimate = tf.placeholder(shape=(None), dtype=tf.float32)
+
   accuracy_100 = tf.reduce_mean(accuracy_batch)
   mean_summary = tf.summary.scalar('Training_accuracy_mean', accuracy_100)
   validation_mean_summary = tf.summary.scalar('Validation_accuracy_mean', accuracy_100)
 
   acc_summary_histogram = tf.summary.histogram('Training_accuracy_histogram', accuracy_batch)
+  overfit_summary = tf.summary.scalar('overfit_estimate', overfit_estimate)
 
   #SESSION Construction
   init = tf.global_variables_initializer()
-  sess = tf.Session(config=tf.ConfigProto(
-        log_device_placement=False))
+
+  config = tf.ConfigProto()
+  # config.gpu_options.allow_growth = True
+  # config.gpu_options.per_process_gpu_memory_fraction = 0.5
+  config.log_device_placement=False
+
+  sess = tf.Session(config=config)
   sess.run(init)
+  # input_grad_image = np.zeros((1,32,32,16), dtype=np.float)
+  # input_grad_image[0,15,15,:] = 1000.
+  # back_image = sess.run(grad_image[0], feed_dict={X_image : 128 * np.ones((1,32,32,3)), regularizer_weight : 0., keep_prob : 1.0, grad_image_placeholder : input_grad_image})
+  # print(back_image, np.max(back_image))
+  # plt.figure()
+  # max_value = np.max(back_image)
+  # min_value = np.min(back_image)
+  # print(back_image.shape)
+  # plt.imshow(back_image[:,:,0], cmap=plt.get_cmap("seismic"), vmin=-1,
+  #        vmax=1, interpolation="nearest")
+  # plt.show()
+  # sys.exit(0)
   tf.train.start_queue_runners(sess=sess)
 
   #today = date.today()
@@ -439,11 +572,18 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/LR_" + str(INITIAL_LEARNING_RATE) + "/" + "REG_" + str(DEFAULT_REG_WEIGHT) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ",train_dir)
+
+  acc_list = []
+  valid_acc_list = []
+
+  cm_placeholder = tf.placeholder(shape=(1, None, None, 4), dtype=tf.uint8)
+  confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
+
   summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
-  nbatches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
+  batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN // batch_size
   for step in range(MAX_STEPS):
     start_time = time.time()
     _, loss_value, accuracy, acc_str, xentropy_str = sess.run([train_op, loss_op, accuracy_op, acc_summary, cross_entropy_loss])
@@ -461,7 +601,7 @@ def main():
                     'sec/batch)')
       print(format_str % (datetime.now(), step, loss_value, (accuracy*100),
                            examples_per_sec, sec_per_batch), flush=True)
-    if step != 0 and ((step - 1 ) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN != ((step) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN:
+    if step != 0 and ((step - 1 ) * batch_size) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN != ((step) * batch_size) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN:
       print("Starting New Epoch; Epoch %d" % (((step) * BATCH_SIZE) // NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN + 1))
     if step % 100 == 0:
       summary_str = sess.run(summary_op)
