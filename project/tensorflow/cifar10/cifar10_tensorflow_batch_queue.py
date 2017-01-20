@@ -524,7 +524,6 @@ def main():
   accuracy_test = accuracy_eval_model(logits_test, labels)
 
   #Summary operation
-  tf.summary.image('images', images)
   summary_op = tf.summary.merge_all()
 
   acc_summary        = tf.summary.scalar('Training_accuracy_batch', accuracy_op)
