@@ -306,7 +306,7 @@ parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
 
 mutex_group = parser.add_mutually_exclusive_group(required=False)
 mutex_group.add_argument('--sgd',  action='store_true')
-mutex_group.add_argument('--mom',  action='store_true')
+mutex_group.add_argument('--mom',  default=True, action='store_true')
 mutex_group.add_argument('--adam', action='store_true')
 mutex_group.add_argument('--rms',  action='store_true')
 
@@ -411,6 +411,12 @@ def get_optimizer(args, remaining):
   optimizer = MomOpt(learning_rate=lr, momentum=0.95)
   opt_string = ("SGDmomentum_%f" % 0.95)
   sub_remains = []
+  args_dict = vars(args)
+
+  # if len(remaining) == 0:
+  #   args_dict['momentum']  = 0.95
+  #   #return early
+  #   return optimizer, opt_string
 
   if args.sgd:
     args_sgd, sub_remains = sgd_parser.parse_known_args(remaining)
@@ -446,7 +452,6 @@ def get_optimizer(args, remaining):
     sys.exit(1)
 
   #add the arguments to the dictionary (for args)
-  args_dict = vars(args)
   args_sgd_dict  = vars(args_sgd)
 
   for k in args_sgd_dict.keys():
