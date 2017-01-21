@@ -302,7 +302,30 @@ parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_W
   nargs='?', help='Regularization weight (l2 regularization);')
 parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
   nargs='?', help='Batch size;')
-parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+#parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+
+mutex_group = parser.add_mutually_exclusive_group(required=False)
+mutex_group.add_argument('--sgd',  action='store_true')
+mutex_group.add_argument('--mom',  action='store_true')
+mutex_group.add_argument('--adam', action='store_true')
+mutex_group.add_argument('--rms',  action='store_true')
+
+sgd_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --sgd [options]', description='SGD optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+mom_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --mom [options]', description='SGD momentum optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+mom_parser.add_argument('--momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+
+rms_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --rms [options]', description='SGD RMSProp optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+rms_parser.add_argument('--decay', type=float, default=0.9, nargs='?', help="Exponential decay rate for the history gradient;")
+rms_parser.add_argument('--momentum', type=float, default=0.0, nargs='?', help="SGD Momentum Parameter;")
+
+adam_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --adam [options]', description='SGD ADAM optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+adam_parser.add_argument('--beta1', type=float, default=0.9, nargs='?', help="Exponential decay rate for the 1st moment estimates;")
+adam_parser.add_argument('--beta2', type=float, default=0.999, nargs='?', help="Exponential decay rate for the 2nd moment estimates;")
+#adam_parser.add_argument('--epsilon', type=float, default=1e-8, nargs='?', help="Numerical Stability;")
+
+
+
 ##
 # Add device placement (0,1)?
 # Add Seed?
@@ -337,7 +360,7 @@ opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
 # tf.contrib.layers.batch_norm
 # batch_norm
 
-#probably should pass in a momentum parameters
+#probably should pass in an optimizer
 def train(total_loss, global_step,
           learning_rate=INITIAL_LEARNING_RATE,
           decay_steps=DECAY_STEPS,
@@ -382,19 +405,72 @@ def train(total_loss, global_step,
 # (3) generate parameters for two runs (one on each GPU)
 # (4) runs [feeds and runs ops]
 
-def main():
-  #parser.print_help()
-  args = parser.parse_args()
-  print(args)
-  print("Loading Data;")
+def get_optimizer(args, remaining):
+  lr = args.learning_rate
+  
+  optimizer = MomOpt(learning_rate=lr, momentum=0.95)
+  opt_string = ("SGDmomentum_%f" % 0.95)
+  sub_remains = []
 
-  lr = args.learning_rate#INITIAL_LEARNING_RATE
+  if args.sgd:
+    args_sgd, sub_remains = sgd_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      sgd_parser.print_help()
+    optimizer = GradOpt(learning_rate=lr)
+    opt_string = "SGD"
+  if args.mom:
+    args_sgd, sub_remains = mom_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      mom_parser.print_help()
+    optimizer = MomOpt(learning_rate=lr, momentum=args_sgd.momentum)
+    opt_string = ("SGDmomentum_%.3f" % args_sgd.momentum)
+  if args.rms:
+    args_sgd, sub_remains = rms_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      rms_parser.print_help()
+    optimizer = RMSOpt(learning_rate=lr, decay=args_sgd.decay)
+    opt_string = ("RMSProp_decay_%.3f_momentum_%.3f" % (args_sgd.decay, args_sgd.momentum))
+  if args.adam:
+    args_sgd, sub_remains = adam_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      adam_parser.print_help()
+    optimizer = AdamOpt(learning_rate=lr, beta1=args_sgd.beta1, beta2=args_sgd.beta2)
+    opt_string = ("ADAM_beta1_%.3f_beta2_%.3f" % (args_sgd.beta1, args_sgd.beta2))
+
+  if len(sub_remains) > 0:
+    [print("Failed due to extra args: ", x) for x in sub_remains]
+    sys.exit(1)
+
+  #add the arguments to the dictionary (for args)
+  args_dict = vars(args)
+  args_sgd_dict  = vars(args_sgd)
+
+  for k in args_sgd_dict.keys():
+    args_dict[k] = args_sgd_dict[k]
+
+  return optimizer, opt_string
+
+def main():
+  args, remaining = parser.parse_known_args()
+
+  lr         = args.learning_rate#INITIAL_LEARNING_RATE
   reg_weight = args.regularization_weight
-  kp = args.keep_prob
-  max_steps = args.max_steps
+  kp         = args.keep_prob
+  max_steps  = args.max_steps
   decay_rate = args.decay_rate
   lr_decay_time = args.lr_decay_time
   batch_size = args.batch_size
+
+  optimizer, opt_string = get_optimizer(args, remaining)
+  print(opt_string)
+  #CURRENTLY NOT Used
+  print("Arguments = ", args)
+
+  print("Loading Data;")
 
   data = get_CIFAR10_data()
   train_size = len(data['y_train'])
@@ -478,8 +554,14 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
-  print("Writing summary data to :  ",train_dir)
+  train_dir = "cifar10_results/l1_layer/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  print("Writing summary data to :  ", train_dir)
+  #probably should write parameters used to train the model to this directory
+  #also pickle the named tuple
+  # with open('train_dir' + '/model_parameters.txt', 'w') as outfile:
+  #   #
+  #should write the checkpoint files
+
 
   acc_list = []
   valid_acc_list = []
@@ -563,7 +645,7 @@ def main():
     if (step % 5000 == 0 and step > 0) or (step + 1) == max_steps:
       checkpoint_path = os.path.join(train_dir, current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute) + 'model.ckpt')
       print("Checkpoint path = ", checkpoint_path)
-      saver.save(sess, checkpoint_path + 'model.ckpt', global_step=step, write_meta_graph=True)
+      saver.save(sess, checkpoint_path, global_step=step, write_meta_graph=True)
 
   return 0
 
