@@ -155,6 +155,8 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
 
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
+    #, is_training=False
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.9, data_format="NHWC")
     #variable_summaries(bias, bias.name)
     variable_summaries(kernel, kernel.name)
     activation_summaries(layer, layer.name)
@@ -234,7 +236,7 @@ def inference(images,
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = conv_relu(layer,  [3,3,128,256], [256], "conv_7")
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_7")
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
