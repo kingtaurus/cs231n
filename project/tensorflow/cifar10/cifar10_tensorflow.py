@@ -119,11 +119,12 @@ def conv_relu_eval_model(layer_in, name):
     bias = tf.get_variable("b")
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, data_format="NHWC", is_training=False, reuse=True, scope=scope)
   return layer
 
 sub = None
 
-def conv_relu(layer_in, kernel_shape, bias_shape, name):
+def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
   global sub
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
@@ -157,7 +158,7 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #, is_training=False
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.9, data_format="NHWC")
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, data_format="NHWC", is_training=is_training, scope=scope)
     #variable_summaries(bias, bias.name)
     variable_summaries(kernel, kernel.name)
     activation_summaries(layer, layer.name)
@@ -229,6 +230,7 @@ def inference(images,
               keep_prob=None,
               regularizer_weight=None,
               loss_collection=LOSSES_COLLECTION,
+              is_training=True,
               model_name="model_1"):
   with tf.variable_scope(model_name) as model_scope:
     layer = conv_relu(images, [5,5,3,128], [128], "conv_1")
@@ -489,14 +491,17 @@ def main():
   keep_prob = tf.placeholder(dtype=tf.float32, shape=())
   learning_rate = tf.placeholder(dtype=tf.float32, shape=())
   regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
+  is_training = tf.placeholder(dtype=tf.bool, shape=())
 
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
+  b_norm_images          = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.999, data_format="NHWC", is_training=True, scope="input")
+  b_norm_images_no_train = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.999, data_format="NHWC", is_training=False, reuse=True, scope="input")
   #MODEL construction
-  logits, grad_image, grad_image_placeholder = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits, grad_image, grad_image_placeholder = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -510,7 +515,7 @@ def main():
 
   saver = tf.train.Saver(tf.global_variables())
 
-  logits_test = inference_eval_model(X_image)
+  logits_test = inference_eval_model(b_norm_images_no_train)
   accuracy_test = accuracy_eval_model(logits_test, y_label)
 
   #Summary operation
@@ -630,7 +635,7 @@ def main():
       # plt.imshow(image[0])
       # plt.grid(b=False)
       # plt.show()
-    if step % 10 == 0:
+    if step % 50 == 0:
       #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
         #print('creating image;')
