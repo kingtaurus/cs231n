@@ -119,7 +119,7 @@ def conv_relu_eval_model(layer_in, name):
     bias = tf.get_variable("b")
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, data_format="NHWC", is_training=False, reuse=True, scope=scope)
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.95, data_format="NHWC", is_training=False, reuse=True, scope=scope, updates_collections=None)
   return layer
 
 sub = None
@@ -158,7 +158,7 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #, is_training=False
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, data_format="NHWC", is_training=is_training, scope=scope)
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.95, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
     #variable_summaries(bias, bias.name)
     variable_summaries(kernel, kernel.name)
     activation_summaries(layer, layer.name)
@@ -363,7 +363,6 @@ opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
 
 ## BATCH NORM
 # tf.contrib.layers.batch_norm
-# batch_norm
 
 #probably should pass in an optimizer
 def train(total_loss, global_step,
@@ -496,12 +495,40 @@ def main():
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
+  # test = tf.equal(True, is_training)
+  #only do distortions on training data
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_flip_left_right(img), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_flip_up_down(img), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_brightness(img, max_delta=60), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_contrast(img, lower=0.2, upper=1.8), X_image), lambda: X_image)
+
+  # X_image = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_flip_up_down(img), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_brightness(img, max_delta=60), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_contrast(img, lower=0.2, upper=1.8), X_image)
+  # def image_distortions(image, distortions):
+  #     distort_left_right_random = distortions[0]
+  #     mirror = tf.less(tf.pack([1.0, distort_left_right_random, 1.0]), 0.5)
+  #     image = tf.reverse(image, mirror)
+  #     distort_up_down_random = distortions[1]
+  #     mirror = tf.less(tf.pack([distort_up_down_random, 1.0, 1.0]), 0.5)
+  #     image = tf.reverse(image, mirror)
+  #     return image
+  # distortions = tf.random_uniform([2], 0, 1.0, dtype=tf.float32)
+  # image = image_distortions(image, distortions)
+  # tf.image.flip_up_down(image)
+  # tf.image.flip_left_right(image)
+  # tf.image.transpose_image(image)
+  # tf.image.rot90(image, k=1, name=None)
+  # tf.image.adjust_brightness
+  # tf.image.adjust_contrast(images, contrast_factor)
+  # tf.image.per_image_standardization(image)
+
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
-  b_norm_images          = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.999, data_format="NHWC", is_training=True, scope="input")
-  b_norm_images_no_train = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.999, data_format="NHWC", is_training=False, reuse=True, scope="input")
+  b_norm_images  = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.95, data_format="NHWC", is_training=is_training, scope="input", updates_collections=None)
   #MODEL construction
-  logits, grad_image, grad_image_placeholder = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits, grad_image, grad_image_placeholder = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -514,9 +541,6 @@ def main():
   train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((train_size //  batch_size) + 1))
 
   saver = tf.train.Saver(tf.global_variables())
-
-  logits_test = inference_eval_model(b_norm_images_no_train)
-  accuracy_test = accuracy_eval_model(logits_test, y_label)
 
   #Summary operation
   tf.summary.image('images', X_image)
@@ -606,7 +630,7 @@ def main():
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
-    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight }
+    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight, is_training : True }
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
@@ -632,7 +656,7 @@ def main():
       # plt.imshow(image[0])
       # plt.grid(b=False)
       # plt.show()
-    if step % 50 == 0:
+    if step % 10 == 0:
       #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
         #print('creating image;')
@@ -653,17 +677,16 @@ def main():
       batch_valid_mask = np.random.choice(num_valid, batch_size)
       X_val_batch = data['X_val'][batch_valid_mask]
       y_val_batch = data['y_val'][batch_valid_mask]
-      valid_dict = { X_image : X_val_batch, y_label : y_val_batch, keep_prob : 1.0, regularizer_weight : 0.00}
-      format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (validation) = {4:>3.2f}')
-      valid_summary, valid_acc = sess.run([validation_acc_summary, accuracy_op], feed_dict=valid_dict)
+      valid_dict = { X_image : X_val_batch, y_label : y_val_batch, keep_prob : 1.0, regularizer_weight : 0.00, is_training : False}
+      format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (val) = {4:>3.2f}, loss = {5:2.3f}')
+      valid_summary, valid_acc, valid_loss = sess.run([validation_acc_summary, accuracy_op, loss_op], feed_dict=valid_dict)
       valid_acc_list.append(valid_acc)
       #tqdm_val = valid_acc
 
       valid_acc_list = valid_acc_list[-100:]
       # Probably should change the slice size to be smaller (10 instead of 100)
       valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list)})
-      print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
-      print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
+      print(format_str.format(datetime.now(), step, loss_value, 100*accuracy, 100*valid_acc, valid_loss))
       overfit_summary_str = sess.run(overfit_summary, feed_dict = {overfit_estimate : accuracy - valid_acc})
       summary_writer.add_summary(overfit_summary_str, step)
       summary_writer.add_summary(valid_summary, step)
