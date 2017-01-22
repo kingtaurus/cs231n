@@ -25,6 +25,7 @@ from data_utils import get_CIFAR10_data
 import argparse
 from collections import namedtuple
 
+from tqdm import tqdm, trange
 
 import seaborn as sns
 sns.set_style("darkgrid")
@@ -580,10 +581,24 @@ def main():
 
   print("Starting Training.")
   print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
-  for step in range(max_steps):
+
+  epoch = 0
+  tqdm_format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (val) = {4:>3.2f}')
+  current_step = 0
+  tqdm_loss = np.inf
+  tqdm_acc  = 0.
+  tqdm_val  = 0.
+  t = tqdm(range(max_steps), desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val), leave=True)
+  #t = trange(max_steps, desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val), leave=True)
+  for step in t:
+    step = int(step)
+    current_step = step
+    t.set_description(desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val))
+    t.refresh()
     num_train = data['X_train'].shape[0]
     if batch_size * (step - 1) // num_train < batch_size * (step) // num_train and step > 0:
-      print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
+      #print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
+      epoch = (batch_size * (step) // num_train )
 
     batch_mask = np.random.choice(num_train, batch_size)
     X_batch = data['X_train'][batch_mask]
@@ -593,6 +608,8 @@ def main():
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
+    tqdm_loss = loss_value
+    tqdm_acc = accuracy
     sess.run(train_op, feed_dict=feed_dict)
 
     acc_list.append(accuracy)
@@ -616,7 +633,7 @@ def main():
     if step % 10 == 0:
       #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
-        print('creating image;')
+        #print('creating image;')
         confusion_img = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
                                               title='Confusion matrix',
                                               cmap=plt.cm.Blues,
@@ -629,7 +646,7 @@ def main():
 
         acc_summary_histogram_out = sess.run(acc_summary_histogram, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
         summary_writer.add_summary(acc_summary_histogram_out, step)
-        print('done adding summary')
+        #print('done adding summary')
       num_valid = data['X_val'].shape[0]
       #batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
       X_val_batch = data['X_val']#[batch_valid_mask]
@@ -638,12 +655,13 @@ def main():
       format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (validation) = {4:>3.2f}')
       valid_summary, valid_acc = sess.run([validation_acc_summary, accuracy_op], feed_dict=valid_dict)
       valid_acc_list.append(valid_acc)
+      tqdm_val = valid_acc
 
       valid_acc_list = valid_acc_list[-100:]
       # Probably should change the slice size to be smaller (10 instead of 100)
       valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list)})
-      print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
-      print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
+      #print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
+      #print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
       overfit_summary_str = sess.run(overfit_summary, feed_dict = {overfit_estimate : accuracy - valid_acc})
       summary_writer.add_summary(overfit_summary_str, step)
       summary_writer.add_summary(valid_summary, step)
