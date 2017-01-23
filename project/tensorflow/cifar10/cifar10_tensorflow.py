@@ -268,7 +268,7 @@ def inference(images,
   grad_image_placeholder = tf.placeholder(dtype=tf.float32, shape=last_conv_layer.get_shape())
   grad_image = tf.gradients(last_conv_layer, [images], grad_image_placeholder)
   print(grad_image[0].get_shape())
-  return pre_softmax_linear, grad_image[0], grad_image_placeholder
+  return pre_softmax_linear, grad_image[0], grad_image_placeholder, last_conv_layer
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
@@ -528,7 +528,7 @@ def main():
   global_step = tf.Variable(0, trainable=False)
   b_norm_images  = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.95, data_format="NHWC", is_training=is_training, scope="input", updates_collections=None)
   #MODEL construction
-  logits, grad_image, grad_image_placeholder = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
+  logits, grad_image, grad_image_placeholder, last_layer = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -605,7 +605,9 @@ def main():
 
   cm_placeholder = tf.placeholder(shape=(1, None, None, 4), dtype=tf.uint8)
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
-
+  layer_output_placeholder = tf.placeholder(shape=(3,None,None,1), dtype=tf.uint8)
+  layer_summary = tf.summary.image('layer_summary', layer_output_placeholder)
+  print(last_layer.get_shape())
   summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   print("Starting Training.")
@@ -637,6 +639,34 @@ def main():
     # tqdm_loss = loss_value
     # tqdm_acc = accuracy
     sess.run(train_op, feed_dict=feed_dict)
+
+    # if step > 0 and step % 50 == 0:
+    #   last_layer_out, logits_out = sess.run([last_layer, logits], feed_dict=feed_dict)
+    #   #print(logits[0])
+    #   logits_out = np.exp(logits_out) / np.sum(np.exp(logits_out), axis=0)
+
+    #   #print(layer_out.shape, layer_out.mean())
+    #   sliced_layer = last_layer_out[0:1,:,:,0:9]
+    #   sliced_layer = np.transpose(sliced_layer, (3,1,2,0))
+    #   #print(sliced_layer.shape)
+    #   split_layer = np.vsplit(sliced_layer, sliced_layer.shape[0])
+    #   squeezed_ = [np.squeeze(x, axis=(0,3)) for x in split_layer]
+    #   vstacked = np.vstack(squeezed_)
+    #   #print(vstacked.shape)
+    #   plt.figure()
+    #   plt.subplot(211)
+    #   plt.imshow(vstacked, vmin=0, vmax=np.max(vstacked), cmap=plt.cm.Blues)
+    #   plt.grid(b='off')
+    #   plt.subplot(212)
+    #   bar_width = 0.1
+    #   print(logits_out.shape)
+    #   index = np.arange(len(logits_out[0]))
+    #   colors = ['blue' for x in logits_out[0]]
+    #   colors[np.argmax(logits_out[0])] = 'green'
+    #   sns.barplot(classes, logits_out[0], palette=colors)
+    #   plt.grid(b='off')
+    #   plt.show()
+
 
     acc_list.append(accuracy)
     acc_list = acc_list[-100:]
