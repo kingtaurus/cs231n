@@ -113,19 +113,15 @@ def weight_decay(layer_weights, wd=0.99):
   layer_weights = tf.mul(wd, layer_weights)
   return layer_weights
 
-def conv_relu_eval_model(layer_in, name):
-  with tf.variable_scope(name, reuse=True) as scope:
-    kernel = tf.get_variable("W")
-    bias = tf.get_variable("b")
-    conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
-    layer = tf.nn.relu(conv + bias)
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.95, data_format="NHWC", is_training=False, reuse=True, scope=scope, updates_collections=None)
-  return layer
-
-sub = None
+a_s = np.array([[0,0,1,0,0],
+                [0,1,1,1,0],
+                [1,1,1,1,1],
+                [0,1,1,1,0],
+                [0,0,1,0,0]])
+a_s = a_s[:,:, np.newaxis, np.newaxis]
+sub = tf.constant(a_s, dtype=tf.float32)
 
 def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
-  global sub
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
                              shape=kernel_shape,
@@ -145,34 +141,22 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
       #Above is similar to drop connect(?)
       print("Not altering the 'kernels' for later layers")
     else:
-      a_s = np.array([[0,0,1,0,0],
-                      [0,1,1,1,0],
-                      [1,1,1,1,1],
-                      [0,1,1,1,0],
-                      [0,0,1,0,0]])
-      print(name,"\n", a_s)
-      a_s = a_s[:,:, np.newaxis, np.newaxis]
-      sub = tf.constant(a_s, dtype=tf.float32)
       kernel = kernel * sub
 
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #, is_training=False
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.95, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
-    #variable_summaries(bias, bias.name)
-    variable_summaries(kernel, kernel.name)
-    activation_summaries(layer, layer.name)
-    # layer = tf.nn.lrn(layer, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm')
-  return layer
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
+    scope.reuse_variables()
+    bn_mean = tf.get_variable("beta")
+    bn_std = tf.get_variable("gamma")
+    variable_summaries(bn_mean, name + "_bn_mean")
+    variable_summaries(bn_std, name + "_bn_std")
 
-def fcl_relu_eval_model(layer_in, name):
-  with tf.variable_scope(name, reuse=True) as scope:
-    dim = np.prod(layer_in.get_shape().as_list()[1:])
-    reshape = tf.reshape(layer_in, [-1, dim])
-    weights = tf.get_variable("W_fcl")
-    bias = tf.get_variable("b_fcl")
-    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias)
-    layer = tf.nn.dropout(layer, 1.0)
+    #variable_summaries(bias, bias.name)
+    variable_summaries(kernel, name + "_kernel")
+    activation_summaries(layer, name + "_activation")
+    # layer = tf.nn.lrn(layer, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm')
   return layer
 
 def fcl_relu(layer_in, output_size, name,
@@ -190,7 +174,7 @@ def fcl_relu(layer_in, output_size, name,
                            initializer=tf.constant_initializer(0.))
     if keep_prob is None:
       keep_prob = 1.
-    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name + "_activation")
+    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name)
     layer = tf.nn.dropout(layer, keep_prob)
     variable_summaries(weights, weights.name)
     #variable_summaries(bias, bias.name)
@@ -201,29 +185,6 @@ def fcl_relu(layer_in, output_size, name,
     tf.add_to_collection(loss_collection, regularizer_loss)
   return layer
 
-def inference_eval_model(images,
-                         classes = NUM_CLASSES,
-                         model_name="model_1"):
-  with tf.variable_scope(model_name, reuse=True) as model_scope:
-    layer = conv_relu_eval_model(images, "conv_1")
-    layer = conv_relu_eval_model(layer, "conv_2")
-    layer = conv_relu_eval_model(layer, "conv_3")
-    layer = conv_relu_eval_model(layer, "conv_4")
-    layer = conv_relu_eval_model(layer, "conv_5")
-    layer = conv_relu_eval_model(layer, "conv_6")
-    layer = conv_relu_eval_model(layer, "conv_7")
-    layer = fcl_relu_eval_model(layer, "fcl_1")
-    with tf.variable_scope('pre_softmax_linear', reuse=True) as scope:
-      weights = tf.get_variable('weights')
-      biases = tf.get_variable('biases')
-      pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
-  return pre_softmax_linear
-
-def predict_eval_model(logits):
-  return tf.argmax(logits, dimension=1)
-
-def accuracy_eval_model(logits, y_label):
-  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
 
 def inference(images,
               classes = NUM_CLASSES,
@@ -233,13 +194,13 @@ def inference(images,
               is_training=True,
               model_name="model_1"):
   with tf.variable_scope(model_name) as model_scope:
-    layer = conv_relu(images, [5,5,3,128], [128], "conv_1")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_2")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_3")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_7")
+    layer = conv_relu(images, [5,5,3,128], [128], "conv_1", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_2", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_3", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_7", is_training=is_training)
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
@@ -272,6 +233,10 @@ def inference(images,
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
+
+def accuracy(logits, y_label):
+  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
+
 
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
