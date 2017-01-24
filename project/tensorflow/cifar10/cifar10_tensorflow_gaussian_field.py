@@ -25,6 +25,7 @@ from data_utils import get_CIFAR10_data
 import argparse
 from collections import namedtuple
 
+from tqdm import tqdm, trange
 
 import seaborn as sns
 sns.set_style("darkgrid")
@@ -112,18 +113,26 @@ def weight_decay(layer_weights, wd=0.99):
   layer_weights = tf.mul(wd, layer_weights)
   return layer_weights
 
-def conv_relu_eval_model(layer_in, name):
-  with tf.variable_scope(name, reuse=True) as scope:
-    kernel = tf.get_variable("W")
-    bias = tf.get_variable("b")
-    conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
-    layer = tf.nn.relu(conv + bias)
-  return layer
+unit_value =  np.zeros(shape=(5,5))
+unit_value[2,2] = 1
+a_s = ndimage.filters.gaussian_filter(unit_value, sigma=1.0, order=0)
+max_a = np.max(a_s)
+a_s = 0.95 * a_s / max_a
+a_s = a_s[:,:, np.newaxis, np.newaxis]
+gaussian_field = tf.constant(a_s, dtype=tf.float32)
+field_modified = tf.random_uniform(shape=kernel_shape, minval=0, maxval=1.0, dtype=tf.float32, name='random')
+sub = tf.greater(field_modified, gaussian_field)
+# a_s = np.array([[0,0,1,0,0],
+#                 [0,1,1,1,0],
+#                 [1,1,1,1,1],
+#                 [0,1,1,1,0],
+#                 [0,0,1,0,0]])
+print(name,"\n", a_s)
+# a_s = a_s[:,:, np.newaxis, np.newaxis]
+# sub = tf.constant(a_s, dtype=tf.float32)
+sub = tf.cast(sub, dtype=tf.float32)
 
-sub = None
-
-def conv_relu(layer_in, kernel_shape, bias_shape, name):
-  global sub
+def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
   with tf.variable_scope(name) as scope:
     kernel = tf.get_variable("W",
                              shape=kernel_shape,
@@ -143,43 +152,23 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name):
       #Above is similar to drop connect(?)
       print("Not altering the 'kernels' for later layers")
     else:
-      unit_value =  np.zeros(shape=(5,5))
-      unit_value[2,2] = 1
-      a_s = ndimage.filters.gaussian_filter(unit_value, sigma=1.0, order=0)
-      max_a = np.max(a_s)
-      a_s = 0.95 * a_s / max_a
-      a_s = a_s[:,:, np.newaxis, np.newaxis]
-      gaussian_field = tf.constant(a_s, dtype=tf.float32)
-      field_modified = tf.random_uniform(shape=kernel_shape, minval=0, maxval=1.0, dtype=tf.float32, name='random')
-      sub = tf.greater(field_modified, gaussian_field)
-      # a_s = np.array([[0,0,1,0,0],
-      #                 [0,1,1,1,0],
-      #                 [1,1,1,1,1],
-      #                 [0,1,1,1,0],
-      #                 [0,0,1,0,0]])
-      print(name,"\n", a_s)
-      # a_s = a_s[:,:, np.newaxis, np.newaxis]
-      # sub = tf.constant(a_s, dtype=tf.float32)
-      sub = tf.cast(sub, dtype=tf.float32)
       kernel = kernel * sub
 
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
+    #, is_training=False
+    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
+    scope.reuse_variables()
+    bn_mean = tf.get_variable("beta")
+    bn_std = tf.get_variable("gamma")
+    variable_summaries(bn_mean, name + "_bn_mean")
+    variable_summaries(bn_std, name + "_bn_std")
+
     #variable_summaries(bias, bias.name)
-    variable_summaries(kernel, kernel.name)
-    activation_summaries(layer, layer.name)
+    variable_summaries(kernel, name + "_kernel")
+    activation_summaries(layer, name + "_activation")
     # layer = tf.nn.lrn(layer, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm')
   return layer, weight_decayed_op
-
-def fcl_relu_eval_model(layer_in, name):
-  with tf.variable_scope(name, reuse=True) as scope:
-    dim = np.prod(layer_in.get_shape().as_list()[1:])
-    reshape = tf.reshape(layer_in, [-1, dim])
-    weights = tf.get_variable("W_fcl")
-    bias = tf.get_variable("b_fcl")
-    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias)
-    layer = tf.nn.dropout(layer, 1.0)
-  return layer
 
 def fcl_relu(layer_in, output_size, name,
              regularizer_weight=None, keep_prob=None,
@@ -196,7 +185,7 @@ def fcl_relu(layer_in, output_size, name,
                            initializer=tf.constant_initializer(0.))
     if keep_prob is None:
       keep_prob = 1.
-    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name + "_activation")
+    layer = tf.nn.relu(tf.matmul(reshape, weights) + bias, name=scope.name)
     layer = tf.nn.dropout(layer, keep_prob)
     variable_summaries(weights, weights.name)
     #variable_summaries(bias, bias.name)
@@ -207,44 +196,22 @@ def fcl_relu(layer_in, output_size, name,
     tf.add_to_collection(loss_collection, regularizer_loss)
   return layer
 
-def inference_eval_model(images,
-                         classes = NUM_CLASSES,
-                         model_name="model_1"):
-  with tf.variable_scope(model_name, reuse=True) as model_scope:
-    layer = conv_relu_eval_model(images, "conv_1")
-    layer = conv_relu_eval_model(layer, "conv_2")
-    layer = conv_relu_eval_model(layer, "conv_3")
-    layer = conv_relu_eval_model(layer, "conv_4")
-    layer = conv_relu_eval_model(layer, "conv_5")
-    layer = conv_relu_eval_model(layer, "conv_6")
-    layer = conv_relu_eval_model(layer, "conv_7")
-    layer = fcl_relu_eval_model(layer, "fcl_1")
-    with tf.variable_scope('pre_softmax_linear', reuse=True) as scope:
-      weights = tf.get_variable('weights')
-      biases = tf.get_variable('biases')
-      pre_softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
-  return pre_softmax_linear
-
-def predict_eval_model(logits):
-  return tf.argmax(logits, dimension=1)
-
-def accuracy_eval_model(logits, y_label):
-  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
 
 def inference(images,
               classes = NUM_CLASSES,
               keep_prob=None,
               regularizer_weight=None,
               loss_collection=LOSSES_COLLECTION,
+              is_training=True,
               model_name="model_1"):
   with tf.variable_scope(model_name) as model_scope:
-    layer, wd_0 = conv_relu(images, [5,5,3,128], [128], "conv_1")
-    layer, wd_1 = conv_relu(layer,  [3,3,128,128], [128], "conv_2")
-    layer, wd_2 = conv_relu(layer,  [3,3,128,128], [128], "conv_3")
-    layer, wd_3 = conv_relu(layer,  [3,3,128,128], [128], "conv_4")
-    layer, wd_4 = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
-    layer, wd_5 = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
-    layer, wd_6 = conv_relu(layer,  [3,3,128,256], [256], "conv_7")
+    layer = conv_relu(images, [5,5,3,128], [128], "conv_1", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_2", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_3", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_4", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6", is_training=is_training)
+    layer = conv_relu(layer,  [3,3,128,128], [128], "conv_7", is_training=is_training)
     # layer = conv_relu(layer,  [5,5,64,64], [64], "conv_4")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_5")
     # layer = conv_relu(layer,  [3,3,128,128], [128], "conv_6")
@@ -273,10 +240,14 @@ def inference(images,
   grad_image_placeholder = tf.placeholder(dtype=tf.float32, shape=last_conv_layer.get_shape())
   grad_image = tf.gradients(last_conv_layer, [images], grad_image_placeholder)
   print(grad_image[0].get_shape())
-  return pre_softmax_linear, (wd_0, wd_1, wd_2), grad_image[0], grad_image_placeholder
+  return pre_softmax_linear, (wd_0, wd_1, wd_2), grad_image[0], grad_image_placeholder, last_conv_layer
 
 def predict(logits):
   return tf.argmax(logits, dimension=1)
+
+def accuracy(logits, y_label):
+  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
+
 
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
@@ -312,7 +283,30 @@ parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_W
   nargs='?', help='Regularization weight (l2 regularization);')
 parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
   nargs='?', help='Batch size;')
-parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+#parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+
+mutex_group = parser.add_mutually_exclusive_group(required=False)
+mutex_group.add_argument('--sgd',  action='store_true')
+mutex_group.add_argument('--mom',  default=True, action='store_true')
+mutex_group.add_argument('--adam', action='store_true')
+mutex_group.add_argument('--rms',  action='store_true')
+
+sgd_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --sgd [options]', description='SGD optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+mom_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --mom [options]', description='SGD momentum optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+mom_parser.add_argument('--momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
+
+rms_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --rms [options]', description='SGD RMSProp optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+rms_parser.add_argument('--decay', type=float, default=0.9, nargs='?', help="Exponential decay rate for the history gradient;")
+rms_parser.add_argument('--momentum', type=float, default=0.0, nargs='?', help="SGD Momentum Parameter;")
+
+adam_parser = argparse.ArgumentParser(prog='cifar10_tensorflow.py', usage='%(prog)s --adam [options]', description='SGD ADAM optimizer parsing', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+adam_parser.add_argument('--beta1', type=float, default=0.9, nargs='?', help="Exponential decay rate for the 1st moment estimates;")
+adam_parser.add_argument('--beta2', type=float, default=0.999, nargs='?', help="Exponential decay rate for the 2nd moment estimates;")
+#adam_parser.add_argument('--epsilon', type=float, default=1e-8, nargs='?', help="Numerical Stability;")
+
+
+
 ##
 # Add device placement (0,1)?
 # Add Seed?
@@ -345,9 +339,8 @@ opt_to_name = { GradOpt : "grad", AdagradOpt : "Adagrad",
 
 ## BATCH NORM
 # tf.contrib.layers.batch_norm
-# batch_norm
 
-#probably should pass in a momentum parameters
+#probably should pass in an optimizer
 def train(total_loss, global_step,
           learning_rate=INITIAL_LEARNING_RATE,
           decay_steps=DECAY_STEPS,
@@ -392,19 +385,77 @@ def train(total_loss, global_step,
 # (3) generate parameters for two runs (one on each GPU)
 # (4) runs [feeds and runs ops]
 
-def main():
-  #parser.print_help()
-  args = parser.parse_args()
-  print(args)
-  print("Loading Data;")
+def get_optimizer(args, remaining):
+  lr = args.learning_rate
+  
+  optimizer = MomOpt(learning_rate=lr, momentum=0.95)
+  opt_string = ("SGDmomentum_%f" % 0.95)
+  sub_remains = []
+  args_dict = vars(args)
 
-  lr = args.learning_rate#INITIAL_LEARNING_RATE
+  # if len(remaining) == 0:
+  #   args_dict['momentum']  = 0.95
+  #   #return early
+  #   return optimizer, opt_string
+
+  if args.sgd:
+    args_sgd, sub_remains = sgd_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      sgd_parser.print_help()
+    optimizer = GradOpt(learning_rate=lr)
+    opt_string = "SGD"
+  if args.mom:
+    args_sgd, sub_remains = mom_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      mom_parser.print_help()
+    optimizer = MomOpt(learning_rate=lr, momentum=args_sgd.momentum)
+    opt_string = ("SGDmomentum_%.3f" % args_sgd.momentum)
+  if args.rms:
+    args_sgd, sub_remains = rms_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      rms_parser.print_help()
+    optimizer = RMSOpt(learning_rate=lr, decay=args_sgd.decay)
+    opt_string = ("RMSProp_decay_%.3f_momentum_%.3f" % (args_sgd.decay, args_sgd.momentum))
+  if args.adam:
+    args_sgd, sub_remains = adam_parser.parse_known_args(remaining)
+    if len(sub_remains) > 0:
+      parser.print_help()
+      adam_parser.print_help()
+    optimizer = AdamOpt(learning_rate=lr, beta1=args_sgd.beta1, beta2=args_sgd.beta2)
+    opt_string = ("ADAM_beta1_%.3f_beta2_%.3f" % (args_sgd.beta1, args_sgd.beta2))
+
+  if len(sub_remains) > 0:
+    [print("Failed due to extra args: ", x) for x in sub_remains]
+    sys.exit(1)
+
+  #add the arguments to the dictionary (for args)
+  args_sgd_dict  = vars(args_sgd)
+
+  for k in args_sgd_dict.keys():
+    args_dict[k] = args_sgd_dict[k]
+
+  return optimizer, opt_string
+
+def main():
+  args, remaining = parser.parse_known_args()
+
+  lr         = args.learning_rate#INITIAL_LEARNING_RATE
   reg_weight = args.regularization_weight
-  kp = args.keep_prob
-  max_steps = args.max_steps
+  kp         = args.keep_prob
+  max_steps  = args.max_steps
   decay_rate = args.decay_rate
   lr_decay_time = args.lr_decay_time
   batch_size = args.batch_size
+
+  optimizer, opt_string = get_optimizer(args, remaining)
+  print(opt_string)
+  #CURRENTLY NOT Used
+  print("Arguments = ", args)
+
+  print("Loading Data;")
 
   data = get_CIFAR10_data()
   train_size = len(data['y_train'])
@@ -415,14 +466,45 @@ def main():
   keep_prob = tf.placeholder(dtype=tf.float32, shape=())
   learning_rate = tf.placeholder(dtype=tf.float32, shape=())
   regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
+  is_training = tf.placeholder(dtype=tf.bool, shape=())
 
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
+  # test = tf.equal(True, is_training)
+  #only do distortions on training data
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_flip_left_right(img), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_flip_up_down(img), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_brightness(img, max_delta=60), X_image), lambda: X_image)
+  X_image = tf.cond(is_training, lambda: tf.map_fn(lambda img: tf.image.random_contrast(img, lower=0.2, upper=1.8), X_image), lambda: X_image)
+
+  # X_image = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_flip_up_down(img), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_brightness(img, max_delta=60), X_image)
+  # X_image = tf.map_fn(lambda img: tf.image.random_contrast(img, lower=0.2, upper=1.8), X_image)
+  # def image_distortions(image, distortions):
+  #     distort_left_right_random = distortions[0]
+  #     mirror = tf.less(tf.pack([1.0, distort_left_right_random, 1.0]), 0.5)
+  #     image = tf.reverse(image, mirror)
+  #     distort_up_down_random = distortions[1]
+  #     mirror = tf.less(tf.pack([distort_up_down_random, 1.0, 1.0]), 0.5)
+  #     image = tf.reverse(image, mirror)
+  #     return image
+  # distortions = tf.random_uniform([2], 0, 1.0, dtype=tf.float32)
+  # image = image_distortions(image, distortions)
+  # tf.image.flip_up_down(image)
+  # tf.image.flip_left_right(image)
+  # tf.image.transpose_image(image)
+  # tf.image.rot90(image, k=1, name=None)
+  # tf.image.adjust_brightness
+  # tf.image.adjust_contrast(images, contrast_factor)
+  # tf.image.per_image_standardization(image)
+
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
+  b_norm_images  = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.95, data_format="NHWC", is_training=is_training, scope="input", updates_collections=None)
   #MODEL construction
-  logits, (wd_0, wd_1, wd_2), grad_image, grad_image_placeholder = inference(X_image, keep_prob=keep_prob, regularizer_weight=regularizer_weight)
+  logits, (wd_0, wd_1, wd_2), grad_image, grad_image_placeholder, last_layer = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -435,9 +517,6 @@ def main():
   train_op = train(total_loss, global_step, learning_rate=lr, lr_rate_decay_factor=decay_rate, decay_steps=lr_decay_time * ((train_size //  batch_size) + 1))
 
   saver = tf.train.Saver(tf.global_variables())
-
-  logits_test = inference_eval_model(X_image)
-  accuracy_test = accuracy_eval_model(logits_test, y_label)
 
   #Summary operation
   tf.summary.image('images', X_image)
@@ -490,35 +569,83 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
-  print("Writing summary data to :  ",train_dir)
+  train_dir = "cifar10_results/gaussian_field/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  print("Writing summary data to :  ", train_dir)
+  #probably should write parameters used to train the model to this directory
+  #also pickle the named tuple
+  # with open('train_dir' + '/model_parameters.txt', 'w') as outfile:
+  #   #
+  #should write the checkpoint files
+
 
   acc_list = []
   valid_acc_list = []
 
   cm_placeholder = tf.placeholder(shape=(1, None, None, 4), dtype=tf.uint8)
   confusion_summary = tf.summary.image('confusion_matrix', cm_placeholder)
-
+  layer_output_placeholder = tf.placeholder(shape=(3,None,None,1), dtype=tf.uint8)
+  layer_summary = tf.summary.image('layer_summary', layer_output_placeholder)
+  print(last_layer.get_shape())
   summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 
   print("Starting Training.")
   print("Training for %d batches (of size %d); initial learning rate %f" % (max_steps, batch_size, lr))
+  # tqdm_format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (val) = {4:>3.2f}')
+  # current_step = 0
+  # tqdm_loss = np.inf
+  # tqdm_acc  = 0.
+  # tqdm_val  = 0.
+  # t = tqdm(range(max_steps), desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val), leave=True)
+  #t = trange(max_steps, desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val), leave=True)
   for step in range(max_steps):
+    # current_step = step
+    # t.set_description(desc="Epoch %d, step %d, loss %2.2f, acc %2.2f, acc (val) %2.2f"%(epoch, current_step, tqdm_loss, tqdm_acc, tqdm_val))
+    # t.refresh()
     num_train = data['X_train'].shape[0]
     if batch_size * (step - 1) // num_train < batch_size * (step) // num_train and step > 0:
       print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
-
+      epoch = (batch_size * (step) // num_train )
       sess.run([wd_0])
 
     batch_mask = np.random.choice(num_train, batch_size)
     X_batch = data['X_train'][batch_mask]
     y_batch = data['y_train'][batch_mask]
     start_time = time.time()
-    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight }
+    feed_dict = { X_image : X_batch, y_label : y_batch, keep_prob : kp, regularizer_weight : reg_weight, is_training : True }
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
+    # tqdm_loss = loss_value
+    # tqdm_acc = accuracy
     sess.run(train_op, feed_dict=feed_dict)
+
+    # if step > 0 and step % 50 == 0:
+    #   last_layer_out, logits_out = sess.run([last_layer, logits], feed_dict=feed_dict)
+    #   #print(logits[0])
+    #   logits_out = np.exp(logits_out) / np.sum(np.exp(logits_out), axis=0)
+
+    #   #print(layer_out.shape, layer_out.mean())
+    #   sliced_layer = last_layer_out[0:1,:,:,0:9]
+    #   sliced_layer = np.transpose(sliced_layer, (3,1,2,0))
+    #   #print(sliced_layer.shape)
+    #   split_layer = np.vsplit(sliced_layer, sliced_layer.shape[0])
+    #   squeezed_ = [np.squeeze(x, axis=(0,3)) for x in split_layer]
+    #   vstacked = np.vstack(squeezed_)
+    #   #print(vstacked.shape)
+    #   plt.figure()
+    #   plt.subplot(211)
+    #   plt.imshow(vstacked, vmin=0, vmax=np.max(vstacked), cmap=plt.cm.Blues)
+    #   plt.grid(b='off')
+    #   plt.subplot(212)
+    #   bar_width = 0.1
+    #   print(logits_out.shape)
+    #   index = np.arange(len(logits_out[0]))
+    #   colors = ['blue' for x in logits_out[0]]
+    #   colors[np.argmax(logits_out[0])] = 'green'
+    #   sns.barplot(classes, logits_out[0], palette=colors)
+    #   plt.grid(b='off')
+    #   plt.show()
+
 
     acc_list.append(accuracy)
     acc_list = acc_list[-100:]
@@ -541,7 +668,7 @@ def main():
     if step % 10 == 0:
       #print("max = %f; mean = %f" %(np.max(image), np.mean(image)))
       if step > 0:
-        print('creating image;')
+        #print('creating image;')
         confusion_img = plot_confusion_matrix(confusion_matrix(y_batch, predicted_class),
                                               title='Confusion matrix',
                                               cmap=plt.cm.Blues,
@@ -554,21 +681,21 @@ def main():
 
         acc_summary_histogram_out = sess.run(acc_summary_histogram, feed_dict={accuracy_batch : np.array(acc_list[-100:])})
         summary_writer.add_summary(acc_summary_histogram_out, step)
-        print('done adding summary')
+        #print('done adding summary')
       num_valid = data['X_val'].shape[0]
-      #batch_valid_mask = np.random.choice(num_valid, BATCH_SIZE)
-      X_val_batch = data['X_val']#[batch_valid_mask]
-      y_val_batch = data['y_val']#[batch_valid_mask]
-      valid_dict = { X_image : X_val_batch, y_label : y_val_batch, keep_prob : 1.0, regularizer_weight : 0.00}
-      format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (validation) = {4:>3.2f}')
-      valid_summary, valid_acc = sess.run([validation_acc_summary, accuracy_op], feed_dict=valid_dict)
+      batch_valid_mask = np.random.choice(num_valid, batch_size)
+      X_val_batch = data['X_val'][batch_valid_mask]
+      y_val_batch = data['y_val'][batch_valid_mask]
+      valid_dict = { X_image : X_val_batch, y_label : y_val_batch, keep_prob : 1.0, regularizer_weight : 0.00, is_training : False}
+      format_str = ('{0}: step {1:>5d}, loss = {2:2.3f}, accuracy = {3:>3.2f}, accuracy (val) = {4:>3.2f}, loss = {5:2.3f}')
+      valid_summary, valid_acc, valid_loss = sess.run([validation_acc_summary, accuracy_op, loss_op], feed_dict=valid_dict)
       valid_acc_list.append(valid_acc)
+      #tqdm_val = valid_acc
 
       valid_acc_list = valid_acc_list[-100:]
       # Probably should change the slice size to be smaller (10 instead of 100)
       valid_accuracy_100_str = sess.run(validation_mean_summary, feed_dict={accuracy_batch : np.array(valid_acc_list)})
-      print(format_str.format(datetime.now(), step, loss_value, accuracy*100, 100*valid_acc))
-      print("Validation accuracy (testing) = ", sess.run(accuracy_test, feed_dict=valid_dict))
+      print(format_str.format(datetime.now(), step, loss_value, 100*accuracy, 100*valid_acc, valid_loss))
       overfit_summary_str = sess.run(overfit_summary, feed_dict = {overfit_estimate : accuracy - valid_acc})
       summary_writer.add_summary(overfit_summary_str, step)
       summary_writer.add_summary(valid_summary, step)
