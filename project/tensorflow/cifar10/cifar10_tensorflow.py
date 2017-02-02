@@ -1,3 +1,4 @@
+#CUDA_VISIBLE_DEVICES=0 python cifar10_tensorflow.py --keep_prob 0.75 --regularization_weight 0.10 --learning_rate 0.03 --decay_rate 0.1 --lr_decay_time 100 --batch_size 512 --max_steps 50000
 import io
 
 import gzip
@@ -70,7 +71,7 @@ def activation_summaries(activation, name):
   #might want to specify the activation type (since min will always be 0 for ReLU)
   with tf.name_scope("activation_summaries"):
     mean = tf.reduce_mean(activation)
-    tf.summary.histogram(name + '/activations', activation)
+    #tf.summary.histogram(name + '/activations', activation)
     tf.summary.scalar(name + '/sparsity', tf.nn.zero_fraction(activation))
     with tf.name_scope('stddev'):
       stddev = tf.sqrt(tf.reduce_sum(tf.square(activation - mean)))
@@ -81,7 +82,7 @@ def activation_summaries(activation, name):
 def variable_summaries(variable, name):
   with tf.name_scope("variable_summaries"):
     mean = tf.reduce_mean(variable)
-    tf.summary.histogram(name + '/variable_hist', variable)
+    #tf.summary.histogram(name + '/variable_hist', variable)
     with tf.name_scope('stddev'):
       stddev = tf.sqrt(tf.reduce_sum(tf.square(variable - mean)))
     tf.summary.scalar('stddev/' + name, stddev)
@@ -109,7 +110,7 @@ def variable_summaries(variable, name):
 # validation_layer = tf.get_variable("W", resuse=True)
 
 
-def weight_decay(layer_weights, wd=0.99):
+def weight_decay(layer_weights, wd=0.999):
   layer_weights = tf.mul(wd, layer_weights)
   return layer_weights
 
@@ -146,12 +147,12 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #, is_training=False
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.99, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
-    scope.reuse_variables()
-    bn_mean = tf.get_variable("beta")
-    bn_std = tf.get_variable("gamma")
-    variable_summaries(bn_mean, name + "_bn_mean")
-    variable_summaries(bn_std, name + "_bn_std")
+    # layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.99, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
+    # scope.reuse_variables()
+    # bn_mean = tf.get_variable("beta")
+    # bn_std = tf.get_variable("gamma")
+    # variable_summaries(bn_mean, name + "_bn_mean")
+    # variable_summaries(bn_std, name + "_bn_std")
 
     #variable_summaries(bias, bias.name)
     variable_summaries(kernel, name + "_kernel")
@@ -360,7 +361,7 @@ def train(total_loss, global_step,
   for grad, var in grads:
     if grad is not None:
       print("Found gradients for: ", var.op.name)
-      tf.summary.histogram(var.op.name + "/gradients", grad)
+      #tf.summary.histogram(var.op.name + "/gradients", grad)
 
   with tf.control_dependencies([apply_gradient_op]):
     train_op = tf.no_op(name="train")
