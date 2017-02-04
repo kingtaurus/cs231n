@@ -66,6 +66,12 @@ BATCH_SIZE = 512
 LOSSES_COLLECTION  = 'regularizer_losses'
 DEFAULT_REG_WEIGHT =  1e-1
 
+#PLACEHOLDER VARIABLES
+keep_prob = tf.placeholder(dtype=tf.float32, shape=())
+learning_rate = tf.placeholder(dtype=tf.float32, shape=())
+regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
+is_training = tf.placeholder(dtype=tf.bool, shape=())
+
 def activation_summaries(activation, name):
   #might want to specify the activation type (since min will always be 0 for ReLU)
   with tf.name_scope("activation_summaries"):
@@ -109,7 +115,7 @@ def variable_summaries(variable, name):
 # validation_layer = tf.get_variable("W", resuse=True)
 
 
-def weight_decay(layer_weights, wd=0.99):
+def weight_decay(layer_weights, wd=0.999):
   layer_weights = tf.mul(wd, layer_weights)
   return layer_weights
 
@@ -120,11 +126,14 @@ max_a = np.max(a_s)
 a_s = 0.95 * a_s / max_a
 a_s = a_s[:,:, np.newaxis, np.newaxis]
 gaussian_field = tf.constant(a_s, dtype=tf.float32)
+full_field = tf.ones(shape=[5,5,3,128])
+full_field = full_field * gaussian_field
 field_modified = tf.random_uniform(shape=[5,5,3,128], minval=0, maxval=1.0, dtype=tf.float32, name='random')
-sub = tf.greater(field_modified, gaussian_field)
+sub = tf.cast(tf.greater(field_modified, gaussian_field), tf.float32)#/ full_field
 # a_s = a_s[:,:, np.newaxis, np.newaxis]
 # sub = tf.constant(a_s, dtype=tf.float32)
 sub = tf.cast(sub, dtype=tf.float32)
+all_ones = tf.ones_like(sub)
 
 def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
   with tf.variable_scope(name) as scope:
@@ -146,17 +155,18 @@ def conv_relu(layer_in, kernel_shape, bias_shape, name, is_training=True):
       #Above is similar to drop connect(?)
       print("Not altering the 'kernels' for later layers")
     else:
+      #modify_kernel = tf.select(is_training, sub, all_ones)
       kernel = kernel * sub
 
     conv = tf.nn.conv2d(layer_in, kernel, strides=[1,1,1,1], padding='SAME')
     layer = tf.nn.relu(conv + bias)
     #, is_training=False
-    layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.999, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
-    scope.reuse_variables()
-    bn_mean = tf.get_variable("beta")
-    bn_std = tf.get_variable("gamma")
-    variable_summaries(bn_mean, name + "_bn_mean")
-    variable_summaries(bn_std, name + "_bn_std")
+    # layer = tf.contrib.layers.batch_norm(inputs=layer, decay=0.99, center=True, scale=True, data_format="NHWC", is_training=is_training, reuse=False, scope=scope, updates_collections=None)
+    # scope.reuse_variables()
+    # bn_mean = tf.get_variable("beta")
+    # bn_std = tf.get_variable("gamma")
+    # variable_summaries(bn_mean, name + "_bn_mean")
+    # variable_summaries(bn_std, name + "_bn_std")
 
     #variable_summaries(bias, bias.name)
     variable_summaries(kernel, name + "_kernel")
@@ -242,6 +252,7 @@ def predict(logits):
 def accuracy(logits, y_label):
   return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), y_label), tf.float32))
 
+
 def loss(logits, labels):
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -276,6 +287,10 @@ parser.add_argument('--regularization_weight', type=float, default=DEFAULT_REG_W
   nargs='?', help='Regularization weight (l2 regularization);')
 parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
   nargs='?', help='Batch size;')
+batch_norm_group = parser.add_mutually_exclusive_group(required=False)
+batch_norm_group.add_argument('--batch_norm', dest='batch_norm', action='store_true')
+batch_norm_group.add_argument('--no-batch_norm', dest='batch_norm', action='store_false')
+batch_norm_group.set_defaults(batch_norm=True)
 #parser.add_argument('--lr_momentum', type=float, default=0.95, nargs='?', help='SGD Momentum Parameter;')
 
 mutex_group = parser.add_mutually_exclusive_group(required=False)
@@ -455,12 +470,6 @@ def main():
   for k, v in data.items():
       print('%s: '%(k), v.shape)
 
-  #PLACEHOLDER VARIABLES
-  keep_prob = tf.placeholder(dtype=tf.float32, shape=())
-  learning_rate = tf.placeholder(dtype=tf.float32, shape=())
-  regularizer_weight = tf.placeholder(dtype=tf.float32, shape=())
-  is_training = tf.placeholder(dtype=tf.bool, shape=())
-
   X_image = tf.placeholder(dtype=tf.float32, shape=[None, 32, 32, 3])
   y_label = tf.placeholder(dtype=tf.int64, shape=[None])
 
@@ -495,9 +504,12 @@ def main():
 
   #MODEL related operations and values
   global_step = tf.Variable(0, trainable=False)
-  b_norm_images  = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.95, data_format="NHWC", is_training=is_training, scope="input", updates_collections=None)
+  use_batchnorm = args.batch_norm
+  b_norm_images  = tf.contrib.layers.batch_norm(inputs=X_image, center=True, scale=True, decay=0.99, data_format="NHWC", is_training=is_training, scope="input", updates_collections=None)
+  images = tf.select( use_batchnorm is True, b_norm_images, X_image)
+
   #MODEL construction
-  logits, (wd_0, wd_1, wd_2), grad_image, grad_image_placeholder, last_layer = inference(b_norm_images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
+  logits, (wd_0, wd_1, wd_2), grad_image, grad_image_placeholder, last_layer = inference(images, keep_prob=keep_prob, regularizer_weight=regularizer_weight, is_training=is_training)
   prediction = predict(logits)
   loss_op = loss(logits, y_label)
 
@@ -560,7 +572,7 @@ def main():
   # LR_%f, INITIAL_LEARNING_RATE
   # REG_%f, DEFAULT_REG_WEIGHT
   # add details, relating per epoch results (and mean filtered loss etc.)
-  train_dir = "cifar10_results/gaussian_layer/LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
+  train_dir = "cifar10_results/gaussian_layer/bn_" + str(int(use_batchnorm)) + "/" + "LR_" + str(lr) + "/" + "REG_" + str(reg_weight) + "/" + "KP_" + str(kp) + "/" + current_time.strftime("%B") + "_" + str(current_time.day) + "_" + str(current_time.year) + "-h" + str(current_time.hour) + "m" + str(current_time.minute)
   print("Writing summary data to :  ", train_dir)
   #probably should write parameters used to train the model to this directory
   #also pickle the named tuple
@@ -586,7 +598,6 @@ def main():
     if batch_size * (step - 1) // num_train < batch_size * (step) // num_train and step > 0:
       print("Completed Epoch: %d (step=%d, max_steps=%d, percentage complete= %f)" % ((batch_size * (step) // num_train ), step, max_steps, step/max_steps * 100))
       epoch = (batch_size * (step) // num_train )
-      sess.run([wd_0])
 
     batch_mask = np.random.choice(num_train, batch_size)
     X_batch = data['X_train'][batch_mask]
@@ -596,6 +607,7 @@ def main():
 
     loss_value, accuracy, acc_str, xentropy_str, reg_loss_str, predicted_class = sess.run([total_loss, accuracy_op, acc_summary, cross_entropy_loss, reg_loss_summary, prediction], feed_dict=feed_dict)
     #print(sess.run(prediction, feed_dict=feed_dict))
+    sess.run([wd_0])
     sess.run(train_op, feed_dict=feed_dict)
 
     acc_list.append(accuracy)
