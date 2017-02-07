@@ -97,6 +97,8 @@ sess.run(init_op)
 grad_x_image_result = sess.run(grad_x_image, feed_dict={grad_layer3: array, x_image: x_input})
 #print(grad_x_image_result)
 
+max_value = np.max(np.abs(grad_x_image_result))
+
 array_grad = grad_x_image_result[0][0,:,:,0]
 non_zero_idx = np.nonzero(array_grad)
 
@@ -107,6 +109,7 @@ print("non-zero indices (indices) = ", non_zero_idx)
 print(array_grad.shape)
 
 plt.figure(figsize=(10,10))
-plt.imshow(array_grad, cmap="gray", interpolation="nearest")
+plt.imshow(array_grad, cmap=plt.get_cmap("seismic"), vmin=-max_value,
+	       vmax=max_value, interpolation="nearest")
 plt.show()
 #receptive field size
