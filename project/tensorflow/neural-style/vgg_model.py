@@ -85,5 +85,5 @@ def load_graph(data_path, input_image=None):
 
 if __name__ == '__main__':
     test_array = np.random.randn(1,128,128,3).astype(np.float32)
-    graph, weights = load_graph('vgg_weights/imagenet-vgg-verydeep-19.mat', test_array)
+    graph, weights = load_graph(data_path='vgg_weights/imagenet-vgg-verydeep-19.mat', input_image=test_array)
     print(graph['last'].get_shape())
