@@ -115,7 +115,7 @@ if __name__ == '__main__':
             print(index)
             start = time.time()
             sess.run(opt)
-            print("optimization took : " time.time() - start())
+            print("optimization took : ", time.time() - start)
             print(np.log(sess.run(total_loss)))
             out_image = sess.run(input_image)
             if index > 0 and index % 10 == 0:
