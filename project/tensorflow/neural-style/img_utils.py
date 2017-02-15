@@ -22,7 +22,7 @@ def postprocess(in_image):
 
 def get_image_of_size(image_path, height, width, save=True):
     image = Image.open(image_path)
-    print(image.size)
+    #print(image.size)
     image = ImageOps.fit(image, (width, height), Image.ANTIALIAS)
     if save:
         image_name = image_path.split('/')[-1]

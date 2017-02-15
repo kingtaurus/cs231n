@@ -63,20 +63,20 @@ def load_graph(data_path, input_image=None):
             W = np.transpose(W, (1,0,2,3))
             b = b.reshape(-1)
             net_weights[layer_name] = (W,b)
-            print(layer_name, W.shape, b.shape)
+            # print(layer_name, W.shape, b.shape)
             net_graph[layer_name] = conv_layer(net_graph[last], W, b)
             last = layer_name
 
         if "relu" == layer_type:
             net_graph[layer_name] = relu_layer(net_graph[last])
-            print(layer_name)
+            # print(layer_name)
             last = layer_name
 
         if "pool" == layer_type:
             ksize   = weights[i][0][0][3][0]
             strides = weights[i][0][0][4][0]
-            
-            print(layer_name)
+
+            # print(layer_name)
 
             net_graph[layer_name] = pool_layer(net_graph[last])
             last = layer_name

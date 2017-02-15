@@ -80,11 +80,11 @@ def create_style_features(style_image):
 if __name__ == '__main__':
     style_image_file = img_utils.get_image_of_size('samples/starry_night.jpg', IMAGE_HEIGHT, IMAGE_WIDTH)
     style_features = create_style_features(style_image_file)
-    print(style_features.keys())
+    #print(style_features.keys())
 
     content_image_file = img_utils.get_image_of_size('samples/deadpool.jpg', IMAGE_HEIGHT, IMAGE_WIDTH)
     content_features = create_content_features(content_image_file)
-    print(content_features.keys())
+    #print(content_features.keys())
 
     with tf.variable_scope('input') as scope:
         input_image = tf.get_variable(name="image", trainable=True, dtype=tf.float32, shape=batch_shape, initializer=tf.constant_initializer(value=0., dtype=tf.float32))
