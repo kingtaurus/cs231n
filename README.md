@@ -6,7 +6,7 @@ Stanford CS231n Convolutional Neural Networks for Visual Recognition Assignments
 * Within each assignment directory there is a series of small python modules (that handle feature implementation see [`assignment1/cs231n`](https://github.com/kingtaurus/cs231n/tree/master/assignment1/cs231n));
 * Within each assignment directory there is a dataset directory, with a series of scripts to download images (see  [`assignment1/cs231n/datasets`](https://github.com/kingtaurus/cs231n/tree/master/assignment1/cs231n/datasets))
 
-##[`Assignment 1`](https://github.com/kingtaurus/cs231n/tree/master/assignment1)
+## [`Assignment 1`](https://github.com/kingtaurus/cs231n/tree/master/assignment1)
 From [Assignment 1 Webpage](http://cs231n.github.io/assignments2016/assignment1/):
 
 In this assignment you will practice putting together a simple image classification pipeline, based on the k-Nearest Neighbor or the SVM/Softmax classifier. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment1/README.md). The goals of this assignment are as follows:
@@ -21,7 +21,7 @@ In this assignment you will practice putting together a simple image classificat
 * understand the differences and tradeoffs between these classifiers
 * get a basic understanding of performance improvements from using higher-level representations than raw pixels (e.g. color histograms, Histogram of Gradient (HOG) features)
 
-##[`Assignment 2 `](https://github.com/kingtaurus/cs231n/tree/master/assignment2)
+## [`Assignment 2 `](https://github.com/kingtaurus/cs231n/tree/master/assignment2)
 From [Assignment 2 Webpage](http://cs231n.github.io/assignments2016/assignment2/):
 
 In this assignment you will practice writing backpropagation code, and training Neural Networks and Convolutional Neural Networks. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment2/README.md). The goals of this assignment are as follows:
@@ -35,7 +35,7 @@ In this assignment you will practice writing backpropagation code, and training 
 * effectively cross-validate and find the best hyperparameters for Neural Network architecture
 * understand the architecture of Convolutional Neural Networks and train gain experience with training these models on data
 
-##[`Assignment 3`](https://github.com/kingtaurus/cs231n/tree/master/assignment3)
+## [`Assignment 3`](https://github.com/kingtaurus/cs231n/tree/master/assignment3)
 From [Assignment 3 Webpage](http://cs231n.github.io/assignments2016/assignment3/):
 
 In this assignment you will implement recurrent networks, and apply them to image captioning on Microsoft COCO. We will also introduce the TinyImageNet dataset, and use a pretrained model on this dataset to explore different applications of image gradients. The work flow for the assignment are detailed in  [`README.md`](https://github.com/kingtaurus/cs231n/blob/master/assignment3/README.md). The goals of this assignment are as follows:
@@ -47,10 +47,10 @@ In this assignment you will implement recurrent networks, and apply them to imag
 * Understand how a trained convolutional network can be used to compute gradients with respect to the input image
 * Implement and different applications of image gradients, including saliency maps, fooling images, class visualizations, feature inversion, and DeepDream.
 
-###Setup
+### Setup
 You can work on the assignment in one of two ways: locally on your own machine, or on a virtual machine through Terminal.com. I will only detail how to run in locally.
 
-####Working locally
+#### Working locally
 Get the initial code as a zip file [here](http://vision.stanford.edu/teaching/cs231n/winter1516_assignment1.zip).
 
 **[Use Anaconda]** The preferred approach for installing all the assignment dependencies is to use [Anaconda](https://www.continuum.io/downloads), which is a Python distribution that includes many of the most popular Python packages for science, math, engineering and data analysis. Once you install it you can skip all mentions of requirements and you're ready to go directly to working on the assignment.
@@ -72,20 +72,20 @@ Alternatively you can use `virtualenvwrapper` to manage your virtual environment
 2. do not use `sudo` when calling `pip`.
 3. `conda env` can be used to install/upgrade packages in a similar to virtual environments ([documentation](http://conda.pydata.org/docs/using/envs.html)). **USE IT**
 
-####Download data:
+#### Download data:
 Once you have the starter code, you will need to download the CIFAR-10 dataset. Run the following from the assignment1 directory:
 ```
 cd cs231n/datasets
 ./get_datasets.sh
 ```
 
-####Start IPython:
+#### Start IPython:
 After you have the **CIFAR-10** data, you should start the IPython notebook server from the `assignment1` directory. If you are unfamiliar with IPython, you should read our [IPython tutorial](http://cs231n.github.io/ipython-tutorial).
 
 **NOTE:** 
 If you are working in a virtual environment on OSX, you may encounter errors with matplotlib due to the [issues described here](http://matplotlib.org/faq/virtualenv_faq.html). You can work around this issue by starting the IPython server using the `start_ipython_osx.sh` script from the `assignment1` directory; the script assumes that your virtual environment is named `.env`.
 
-#####Old Assignments
+##### Old Assignments
 The assignments from the prior quarter (Winter 2015). There is a large amount of overlap between the three assignments for Winter 2015-2016. Details of `assignment 1`, `assignment 2`, and `assignment 3` README.
 
 ##### Project
