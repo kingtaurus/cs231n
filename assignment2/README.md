@@ -1,4 +1,4 @@
-#Assignment 2
+# Assignment 2
 [WebPage](http://cs231n.github.io/assignments2016/assignment2/)
 
 In this assignment you will practice writing backpropagation code, and training
