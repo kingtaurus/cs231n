@@ -175,7 +175,6 @@ class KNearestNeighbor(object):
             max = np.amax(occurences)
             #argmax the maximum value in occurences (i.e. the voting rank, giving all occurences the same weight)
             max_classes = np.argwhere(occurences == max).flatten()
-            y_pred[i] = max_classes[0]
             #set it default to the first element
             if k > 2 and len(max_classes) > 1:
                 #if max is greater than one and there are multiple values of max
@@ -193,7 +192,7 @@ class KNearestNeighbor(object):
                 closest_y = closest_min_y[0]
                 #take the minimum element and put it into closest_y
                 #NOTE: that closest_y is set earlier to the first element of closest_classes;
-                y_pred[i] =  int(closest_y)
+            y_pred[i] =  int(closest_y)
             #########################################################################
             #                           END OF YOUR CODE                            #
             #########################################################################
