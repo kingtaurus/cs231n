@@ -198,6 +198,7 @@ class KNearestNeighbor(object):
       #amax the maximum value in occurences (i.e. the voting rank, giving all occurences the same weight)
 
       max_classes = np.argwhere(occurences == max).flatten()
+      y_pred[i] = max_classes[0]
       if k > 2 and len(max_classes) > 1:
         #if max is greater than one and there are multiple values of max
         #   in occurences ==> this implies something like this has occured:
