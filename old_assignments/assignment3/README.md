@@ -1,8 +1,5 @@
----
-layout: page
-mathjax: true
-permalink: /assignment3/
----
+Assignment 3 (2015)
+===================
 
 In the previous assignment, you implemented and trained your own ConvNets.
 In this assignment, we will explore many of the ideas we have discussed in
