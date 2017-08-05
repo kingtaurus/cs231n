@@ -1,5 +1,5 @@
 
-
+import sys
 import os
 import time
 
@@ -15,21 +15,22 @@ STYLE = 'guernica'
 CONTENT = 'deadpool'
 STYLE_IMAGE = 'styles/' + STYLE + '.jpg'
 CONTENT_IMAGE = 'content/' + CONTENT + '.jpg'
-IMAGE_HEIGHT = 250
-IMAGE_WIDTH = 333
+IMAGE_HEIGHT = 600
+IMAGE_WIDTH = 800
 NOISE_RATIO = 0.6 # percentage of weight of the noise for intermixing with the content image
 
 
 # Layers used for style features. You can change this.
 STYLE_LAYERS = ['conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
-W_LAYER      = [0.5, 1.0, 1.5, 3.0, 4.0] # give more weights to deeper layers.
+#W_LAYER      = [0.5, 1.0, 1.5, 3.0, 4.0] # give more weights to deeper layers.
+W_LAYER      = [2.**-1, 2.**0, 2.**1, 2.**2, 2.**3] # give more weights to deeper layers.
 
 # Layer used for content features. You can change this.
 CONTENT_LAYER = 'conv4_2'
 
-ITERS = 400
+ITERS = 1600
 
-LR = 2.0
+LR = 0.6
 
 batch_shape = (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)
 
@@ -78,11 +79,28 @@ def create_style_features(style_image):
     return style_features
 
 if __name__ == '__main__':
-    style_image_file = img_utils.get_image_of_size('samples/starry_night.jpg', IMAGE_HEIGHT, IMAGE_WIDTH)
+    #files to be used:
+    stylized_file = 'samples/starry_night.jpg'
+    content_file  = 'samples/yosemite_upperfalls_river.jpg'
+
+    #need the basename (to split from extension)
+    content_file_basename  = os.path.basename(content_file)
+    stylized_file_basename = os.path.basename(stylized_file)
+
+    #used to save the output:
+    content_file_noext  = os.path.splitext(content_file_basename)[0]
+    stylized_file_noext = os.path.splitext(stylized_file_basename)[0]
+
+    output_file = "stylized/" + content_file_noext + "-style-" + stylized_file_noext + '_iter_{:d}.png'
+
+    # (os.path.basename('samples/starry_night.jpg'))
+    # os.path.splitext("path_to_file")[0]
+    # sys.exit(0)
+    style_image_file = img_utils.get_image_of_size(stylized_file, IMAGE_HEIGHT, IMAGE_WIDTH)
     style_features = create_style_features(style_image_file)
     #print(style_features.keys())
 
-    content_image_file = img_utils.get_image_of_size('samples/deadpool.jpg', IMAGE_HEIGHT, IMAGE_WIDTH)
+    content_image_file = img_utils.get_image_of_size(content_file, IMAGE_HEIGHT, IMAGE_WIDTH)
     content_features = create_content_features(content_image_file)
     #print(content_features.keys())
 
@@ -92,39 +110,44 @@ if __name__ == '__main__':
     l_content = create_content_loss(content_features, net)
     l_style   = create_style_loss(style_features, net)
 
-    total_loss = l_content + 1000 * l_style
+    total_loss = l_content + 512 * l_style
 
     import matplotlib.pyplot as plt
 
     content_image_file = img_utils.preprocess(content_image_file)
 
-    initial_image = img_utils.generate_noise_image(content_image_file, IMAGE_HEIGHT, IMAGE_WIDTH)
-    input_image.assign(initial_image)
+    initial_image = img_utils.generate_noise_image(content_image_file, IMAGE_HEIGHT, IMAGE_WIDTH, 0.1)
+    #initial_image = img_utils.postprocess(initial_image)#undo the preprocessing;
+
+    assign_op = input_image.assign(initial_image)
     opt = tf.train.AdamOptimizer(learning_rate=LR).minimize(total_loss)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        an_image = sess.run(input_image.assign(initial_image))
+        an_image = sess.run(assign_op)
         plt.figure()
+        plt.subplot(121)
         plt.imshow(img_utils.postprocess(np.squeeze(an_image, 0)).astype(np.uint8))
+        plt.subplot(122)
+        plt.imshow(img_utils.postprocess(np.squeeze(content_image_file)).astype(np.uint8))
         plt.show()
         plt.ioff()
         #log loss
         print(np.log(sess.run(total_loss)))
-        for index in range(100):
+        for index in range(ITERS+1):
             print(index)
             start = time.time()
             sess.run(opt)
             print("optimization took : ", time.time() - start)
             print(np.log(sess.run(total_loss)))
             out_image = sess.run(input_image)
-            if index > 0 and index % 10 == 0:
-                plt.figure()
+            if index > 0 and index % 100 == 0:
+                plt.figure(figsize=(12,10), dpi=300)
                 display = img_utils.postprocess(np.squeeze(out_image, 0))
-
-                plt.imshow(np.clip(img_utils.postprocess(np.squeeze(out_image, 0)), 0., 255).astype(np.uint8))
+                plt.imshow(np.clip(img_utils.postprocess(np.squeeze(out_image, 0)), 0., 255).astype(np.uint8), interpolation="none")
+                plt.axis('off')
+                plt.savefig(output_file.format(index), bbox_inches='tight', dpi=100)
                 plt.show()
-
 
 
 
